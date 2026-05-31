@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "../supabase";
+import { supabase, configMissing } from "../supabase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -9,10 +9,21 @@ export default function Login() {
 
   async function handleLogin(e) {
     e.preventDefault();
+
+    // Si faltan las variables de entorno, avisamos claro (no es problema de la clave)
+    if (configMissing) {
+      setError("⚙️ La app no está conectada a la base. Faltan las variables de entorno en Vercel (VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY). Cargalas y volvé a desplegar.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) setError("Email o contraseña incorrectos");
+    if (error) {
+      if (/email not confirmed/i.test(error.message)) setError("El email no está confirmado.");
+      else if (/invalid/i.test(error.message)) setError("Email o contraseña incorrectos.");
+      else setError("No se pudo entrar: " + error.message);
+    }
     setLoading(false);
   }
 
