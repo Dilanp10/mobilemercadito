@@ -15,15 +15,43 @@ export default function App() {
   const [session, setSession] = useState(undefined); // undefined = cargando
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    let resolved = false;
+
+    // Si en 6 s no resolvió, asumimos que no hay sesión y mostramos Login
+    const t = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        setSession(null);
+      }
+    }, 6000);
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(t);
+        setSession(data.session ?? null);
+      })
+      .catch(() => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(t);
+        setSession(null);
+      });
+
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      clearTimeout(t);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   if (session === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-[#64748b]">
+      <div className="min-h-screen flex flex-col items-center justify-center text-[#64748b] gap-3 px-6">
         <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+        <p className="text-xs text-center">Conectando…</p>
       </div>
     );
   }

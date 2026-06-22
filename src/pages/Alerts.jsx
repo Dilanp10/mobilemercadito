@@ -54,13 +54,19 @@ export function useAlerts() {
   useEffect(() => {
     let cancel = false;
     async function load() {
-      const [{ data: prods }, { data: batches }] = await Promise.all([
-        supabase.from("products").select("*").eq("is_deleted", 0),
-        supabase.from("product_batches").select("*").eq("product_source", "products").eq("is_deleted", 0),
-      ]);
-      if (cancel) return;
-      const cls = classifyAlerts(prods || [], batches || []);
-      setData({ ...cls, loading: false });
+      try {
+        const [prodsRes, batchesRes] = await Promise.all([
+          supabase.from("products").select("*").eq("is_deleted", 0),
+          supabase.from("product_batches").select("*").eq("product_source", "products").eq("is_deleted", 0),
+        ]);
+        if (cancel) return;
+        const cls = classifyAlerts(prodsRes.data || [], batchesRes.data || []);
+        setData({ ...cls, loading: false });
+      } catch (e) {
+        if (cancel) return;
+        // Si falla por red u otra cosa, no bloqueamos la UI: dejamos contadores en 0.
+        setData({ lowStock: [], expiring: [], loading: false });
+      }
     }
     load();
     const id = setInterval(load, 60000); // refresca cada minuto
