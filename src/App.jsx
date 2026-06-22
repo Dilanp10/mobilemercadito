@@ -8,6 +8,8 @@ import Products from "./pages/Products";
 import Weighted from "./pages/Weighted";
 import Accounts from "./pages/Accounts";
 import History from "./pages/History";
+import Cuaderno from "./pages/Cuaderno";
+import Alerts from "./pages/Alerts";
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = cargando
@@ -36,7 +38,9 @@ export default function App() {
         <Route path="/productos" element={<Products />} />
         <Route path="/peso" element={<Weighted />} />
         <Route path="/cuentas" element={<Accounts />} />
+        <Route path="/cuaderno" element={<Cuaderno />} />
         <Route path="/historial" element={<History />} />
+        <Route path="/avisos" element={<Alerts />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>

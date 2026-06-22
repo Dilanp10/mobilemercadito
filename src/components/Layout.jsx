@@ -1,10 +1,12 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
+import { useAlerts } from "../pages/Alerts";
 
 const TABS = [
   { to: "/dashboard", icon: "dashboard", label: "Inicio" },
   { to: "/productos", icon: "inventory_2", label: "Productos" },
-  { to: "/peso", icon: "scale", label: "Por peso" },
+  { to: "/peso", icon: "scale", label: "Peso" },
+  { to: "/cuaderno", icon: "menu_book", label: "Cuaderno" },
   { to: "/cuentas", icon: "account_circle", label: "Cuentas" },
   { to: "/historial", icon: "receipt_long", label: "Historial" },
 ];
@@ -13,12 +15,17 @@ const TITLES = {
   "/dashboard": "Resumen",
   "/productos": "Productos",
   "/peso": "Productos por peso",
+  "/cuaderno": "Cuaderno",
   "/cuentas": "Cuentas",
   "/historial": "Historial",
+  "/avisos": "Avisos",
 };
 
 export default function Layout({ children }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { lowStock, expiring } = useAlerts();
+  const total = lowStock.length + expiring.length;
   const title = TITLES[pathname] || "SuperBeto";
 
   return (
@@ -31,13 +38,28 @@ export default function Layout({ children }) {
           </div>
           <h1 className="text-lg font-bold">{title}</h1>
         </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="text-white/80 hover:text-white p-1"
-          title="Salir"
-        >
-          <span className="material-symbols-outlined">logout</span>
-        </button>
+
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => navigate("/avisos")}
+            className="relative text-white/90 hover:text-white p-1"
+            title="Avisos"
+          >
+            <span className="material-symbols-outlined">notifications</span>
+            {total > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-[#ef4444] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#0040a1]">
+                {total > 99 ? "99+" : total}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-white/80 hover:text-white p-1"
+            title="Salir"
+          >
+            <span className="material-symbols-outlined">logout</span>
+          </button>
+        </div>
       </header>
 
       {/* Contenido */}
@@ -51,13 +73,13 @@ export default function Layout({ children }) {
             key={t.to}
             to={t.to}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 ${
+              `flex-1 flex flex-col items-center justify-center py-1.5 gap-0.5 min-w-0 ${
                 isActive ? "text-[#0040a1]" : "text-[#94a3b8]"
               }`
             }
           >
-            <span className="material-symbols-outlined text-[22px]">{t.icon}</span>
-            <span className="text-[10px] font-medium">{t.label}</span>
+            <span className="material-symbols-outlined text-[20px]">{t.icon}</span>
+            <span className="text-[9px] font-medium truncate">{t.label}</span>
           </NavLink>
         ))}
       </nav>
