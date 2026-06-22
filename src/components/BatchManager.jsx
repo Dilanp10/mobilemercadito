@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 import { formatNum, nowLocalAR, newUuid } from "../utils";
+import { useConfirm } from "./Confirm";
 
 // Gestión de tandas (fardos) de un producto, enlazadas por product_uuid.
 // unit: "u" (unidades) | "kg".  step: "1" | "0.1"
@@ -11,6 +12,7 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
   const [addForm, setAddForm] = useState({ quantity: "", expiry_date: "" });
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({ quantity: "", expiry_date: "" });
+  const confirm = useConfirm();
 
   async function load() {
     setLoading(true);
@@ -30,6 +32,7 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
   async function addFardo() {
     const qty = parseFloat(addForm.quantity);
     if (!qty || qty <= 0) return;
+    if (!(await confirm({ title: "Sumar fardo", message: `¿Agregar ${formatNum(qty, qty % 1 === 0 ? 0 : 2)} ${unit} al stock?`, confirmText: "Sumar" }))) return;
     await supabase.from("product_batches").insert({
       uuid: newUuid(),
       product_uuid: productUuid,
@@ -49,6 +52,7 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
   async function saveEdit(b) {
     const qty = parseFloat(editForm.quantity);
     if (isNaN(qty) || qty < 0) return;
+    if (!(await confirm({ title: "Guardar fardo", message: "¿Guardar los cambios de este fardo?", confirmText: "Guardar" }))) return;
     await supabase.from("product_batches").update({
       quantity: qty,
       expiry_date: editForm.expiry_date || null,
@@ -59,6 +63,7 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
   }
 
   async function removeBatch(b) {
+    if (!(await confirm({ title: "Borrar fardo", message: `¿Borrar el fardo de ${formatNum(b.quantity, b.quantity % 1 === 0 ? 0 : 2)} ${unit}? Se descontará del stock.`, confirmText: "Borrar", danger: true }))) return;
     await supabase.from("product_batches").update({
       is_deleted: 1, quantity: 0, updated_at: nowLocalAR(),
     }).eq("uuid", b.uuid);

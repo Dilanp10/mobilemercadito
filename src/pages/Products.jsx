@@ -3,6 +3,7 @@ import { supabase } from "../supabase";
 import { formatMoney, stampUpdate, stampNew, newUuid, nowLocalAR } from "../utils";
 import BatchManager from "../components/BatchManager";
 import BarcodeScanner from "../components/BarcodeScanner";
+import { useConfirm } from "../components/Confirm";
 
 const CATEGORIAS = ["Alimentos", "Limpieza", "Bazar", "Bebidas", "Perfumería"];
 const EMPTY = { name: "", category: "", cost_price: "", unit_price: "", margin: "", barcode: "", stock: "", expiry_date: "" };
@@ -31,6 +32,7 @@ export default function Products() {
   const [detail, setDetail] = useState(null);
   const [toast, setToast] = useState("");
   const [scanning, setScanning] = useState(false);
+  const confirm = useConfirm();
 
   async function load() {
     setLoading(true);
@@ -49,6 +51,7 @@ export default function Products() {
 
   async function addProduct() {
     if (!addForm.name.trim()) return flash("Poné un nombre");
+    if (!(await confirm({ title: "Agregar producto", message: `¿Guardar "${addForm.name.trim()}"?`, confirmText: "Agregar" }))) return;
     const stock = parseFloat(addForm.stock) || 0;
     const prod = stampNew();
     const { error } = await supabase.from("products").insert({
@@ -179,9 +182,11 @@ function ProductDetail({ product, onClose, onSaved }) {
   });
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const confirm = useConfirm();
 
   async function saveFields() {
     if (!form.name.trim()) return;
+    if (!(await confirm({ title: "Guardar cambios", message: `¿Actualizar "${form.name.trim()}"?`, confirmText: "Guardar" }))) return;
     setSaving(true);
     await supabase.from("products").update({
       name: form.name.trim(),
@@ -197,6 +202,7 @@ function ProductDetail({ product, onClose, onSaved }) {
   }
 
   async function darDeBaja() {
+    if (!(await confirm({ title: "Dar de baja", message: `¿Dar de baja "${product.name}"? El historial se conserva.`, confirmText: "Dar de baja", danger: true }))) return;
     await supabase.from("products").update({ is_deleted: 1, ...stampUpdate() }).eq("uuid", product.uuid);
     onSaved("Producto dado de baja");
     onClose();

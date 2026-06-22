@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
 import { formatMoney, formatNum, stampUpdate, stampNew } from "../utils";
 import { SearchBar, Field, IconBtn, Fab, Modal, Loader, Toast } from "./Products";
+import { useConfirm } from "../components/Confirm";
 
 const EMPTY = { name: "", last_name: "", phone: "", gmail: "" };
 
@@ -11,9 +12,9 @@ export default function Accounts() {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY);
-  const [confirmDel, setConfirmDel] = useState(null);
   const [detail, setDetail] = useState(null);
   const [toast, setToast] = useState("");
+  const confirm = useConfirm();
 
   async function load() {
     setLoading(true);
@@ -26,6 +27,7 @@ export default function Accounts() {
 
   async function addAccount() {
     if (!addForm.name.trim() || !addForm.last_name.trim()) return flash("Nombre y apellido obligatorios");
+    if (!(await confirm({ title: "Crear cuenta", message: `¿Crear la cuenta de "${addForm.name.trim()} ${addForm.last_name.trim()}"?`, confirmText: "Crear" }))) return;
     const { error } = await supabase.from("accounts").insert({
       name: addForm.name.trim(),
       last_name: addForm.last_name.trim(),
@@ -38,9 +40,10 @@ export default function Accounts() {
   }
 
   async function doDelete(a) {
+    if (!(await confirm({ title: "Dar de baja", message: `¿Ocultar la cuenta de "${a.name} ${a.last_name}"? El historial se conserva.`, confirmText: "Dar de baja", danger: true }))) return;
     const { error } = await supabase.from("accounts").update({ is_deleted: 1, ...stampUpdate() }).eq("uuid", a.uuid);
     if (error) return flash("Error: " + error.message);
-    setConfirmDel(null); await load(); flash("Cuenta dada de baja");
+    await load(); flash("Cuenta dada de baja");
   }
 
   const filtered = useMemo(() => {
@@ -65,7 +68,7 @@ export default function Accounts() {
             <p className="text-xs text-[#64748b]">{a.phone || a.gmail || "Sin datos"}</p>
           </button>
           <IconBtn icon="chevron_right" color="#94a3b8" onClick={() => setDetail(a)} />
-          <IconBtn icon="delete" color="#ef4444" onClick={() => setConfirmDel(a)} />
+          <IconBtn icon="delete" color="#ef4444" onClick={() => doDelete(a)} />
         </div>
       ))}
 
@@ -78,16 +81,6 @@ export default function Accounts() {
           <Field label="Teléfono" value={addForm.phone} onChange={(v) => setAddForm({ ...addForm, phone: v })} text />
           <Field label="Email" value={addForm.gmail} onChange={(v) => setAddForm({ ...addForm, gmail: v })} text />
           <button onClick={addAccount} className="w-full py-3 bg-[#0040a1] text-white rounded-xl font-bold">Crear cuenta</button>
-        </Modal>
-      )}
-
-      {confirmDel && (
-        <Modal title="Dar de baja" onClose={() => setConfirmDel(null)}>
-          <p className="text-[#1e293b]">¿Ocultar la cuenta de <b>{confirmDel.name} {confirmDel.last_name}</b>? El historial se conserva.</p>
-          <div className="flex gap-2">
-            <button onClick={() => setConfirmDel(null)} className="flex-1 py-3 bg-[#e2e8f0] rounded-xl font-semibold">No</button>
-            <button onClick={() => doDelete(confirmDel)} className="flex-1 py-3 bg-[#ef4444] text-white rounded-xl font-bold">Sí</button>
-          </div>
         </Modal>
       )}
 
