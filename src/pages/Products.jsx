@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
 import { formatMoney, stampUpdate, stampNew, newUuid, nowLocalAR } from "../utils";
 import BatchManager from "../components/BatchManager";
+import BarcodeScanner from "../components/BarcodeScanner";
 
 const CATEGORIAS = ["Alimentos", "Limpieza", "Bazar", "Bebidas", "Perfumería"];
 const EMPTY = { name: "", category: "", cost_price: "", unit_price: "", margin: "", barcode: "", stock: "", expiry_date: "" };
@@ -29,6 +30,7 @@ export default function Products() {
   const [addForm, setAddForm] = useState(EMPTY);
   const [detail, setDetail] = useState(null);
   const [toast, setToast] = useState("");
+  const [scanning, setScanning] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -145,13 +147,24 @@ export default function Products() {
                 className="w-full px-3 py-2 border border-[#e2e8f0] rounded-xl" />
             </div>
           </div>
-          <Field label="Código de barras" value={addForm.barcode} onChange={(v) => setAddForm({ ...addForm, barcode: v })} text />
+          <FieldWithScan
+            label="Código de barras"
+            value={addForm.barcode}
+            onChange={(v) => setAddForm({ ...addForm, barcode: v })}
+            onScan={() => setScanning(true)}
+          />
           <p className="text-xs text-[#94a3b8]">El stock inicial se carga como el primer fardo. Después podés sumar más.</p>
           <button onClick={addProduct} className="w-full py-3 bg-[#0040a1] text-white rounded-xl font-bold">Agregar</button>
         </Modal>
       )}
 
       {detail && <ProductDetail product={detail} onClose={() => setDetail(null)} onSaved={(m) => { flash(m); load(); }} />}
+      {scanning && (
+        <BarcodeScanner
+          onScan={(code) => { setAddForm((f) => ({ ...f, barcode: code })); setScanning(false); flash("Código leído ✓"); }}
+          onClose={() => setScanning(false)}
+        />
+      )}
       {toast && <Toast text={toast} />}
     </div>
   );
@@ -165,6 +178,7 @@ function ProductDetail({ product, onClose, onSaved }) {
     barcode: product.barcode || "",
   });
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   async function saveFields() {
     if (!form.name.trim()) return;
@@ -225,7 +239,12 @@ function ProductDetail({ product, onClose, onSaved }) {
           }}
         />
       </div>
-      <Field label="Código de barras" value={form.barcode} onChange={(v) => setForm({ ...form, barcode: v })} text />
+      <FieldWithScan
+        label="Código de barras"
+        value={form.barcode}
+        onChange={(v) => setForm({ ...form, barcode: v })}
+        onScan={() => setScanning(true)}
+      />
       <button onClick={saveFields} disabled={saving} className="w-full py-2.5 bg-[#0040a1] text-white rounded-xl font-bold">
         {saving ? "Guardando..." : "Guardar cambios"}
       </button>
@@ -235,6 +254,13 @@ function ProductDetail({ product, onClose, onSaved }) {
       <button onClick={darDeBaja} className="w-full py-2.5 bg-white border border-[#ef4444] text-[#ef4444] rounded-xl font-semibold">
         Dar de baja el producto
       </button>
+
+      {scanning && (
+        <BarcodeScanner
+          onScan={(code) => { setForm((f) => ({ ...f, barcode: code })); setScanning(false); }}
+          onClose={() => setScanning(false)}
+        />
+      )}
     </Modal>
   );
 }
@@ -257,6 +283,21 @@ export function Field({ label, value, onChange, text }) {
       <input type={text ? "text" : "number"} inputMode={text ? "text" : "decimal"} value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-3 py-2 border border-[#e2e8f0] rounded-xl focus:outline-none focus:border-[#0040a1]" />
+    </div>
+  );
+}
+export function FieldWithScan({ label, value, onChange, onScan }) {
+  return (
+    <div>
+      <label className="block text-xs text-[#64748b] mb-1">{label}</label>
+      <div className="flex gap-2">
+        <input type="text" inputMode="text" value={value} onChange={(e) => onChange(e.target.value)}
+          className="flex-1 px-3 py-2 border border-[#e2e8f0] rounded-xl focus:outline-none focus:border-[#0040a1]" />
+        <button type="button" onClick={onScan}
+          className="px-3 py-2 bg-[#0040a1] text-white rounded-xl flex items-center justify-center active:scale-95 transition-transform">
+          <span className="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+        </button>
+      </div>
     </div>
   );
 }
