@@ -29,15 +29,12 @@ export default defineConfig({
       },
       workbox: {
         navigateFallbackDenylist: [/^\/api/],
+        // No cacheamos llamadas a Supabase: auth y datos siempre por red,
+        // así no quedan respuestas viejas tras cerrar/abrir sesión.
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin.includes('supabase.co'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
-            },
+            handler: 'NetworkOnly',
           },
           {
             urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
