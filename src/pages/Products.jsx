@@ -8,14 +8,14 @@ import { useConfirm } from "../components/Confirm";
 const CATEGORIAS = ["Alimentos", "Limpieza", "Bazar", "Bebidas", "Perfumería"];
 const EMPTY = { name: "", category: "", cost_price: "", unit_price: "", margin: "", barcode: "", stock: "", expiry_date: "" };
 
-// Helpers de margen
-const calcMargin = (cost, price) => {
+// Helpers de margen (compartidos con Weighted)
+export const calcMargin = (cost, price) => {
   const c = Number(cost);
   const p = Number(price);
   if (!c || isNaN(c) || isNaN(p)) return "";
   return (((p - c) / c) * 100).toFixed(2);
 };
-const calcPriceFromMargin = (cost, margin) => {
+export const calcPriceFromMargin = (cost, margin) => {
   const c = Number(cost);
   const m = Number(margin);
   if (!c || isNaN(c) || isNaN(m)) return "";

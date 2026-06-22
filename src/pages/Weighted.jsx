@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
 import { formatMoney, formatNum, stampUpdate, stampNew, newUuid, nowLocalAR } from "../utils";
-import { SearchBar, Field, Fab, Modal, Loader, Toast } from "./Products";
+import { SearchBar, Field, Fab, Modal, Loader, Toast, calcMargin, calcPriceFromMargin } from "./Products";
 import BatchManager from "../components/BatchManager";
 import { useConfirm } from "../components/Confirm";
 
@@ -12,7 +12,7 @@ const CATS = [
   { key: "panaderia", label: "🥖 Panadería" },
   { key: "otros", label: "📦 Otros" },
 ];
-const EMPTY = { name: "", category: "", cost_price_kg: "", price_kg: "", stock: "", expiry_date: "" };
+const EMPTY = { name: "", category: "", cost_price_kg: "", price_kg: "", margin: "", stock: "", expiry_date: "" };
 
 export default function Weighted() {
   const [items, setItems] = useState([]);
@@ -105,9 +105,31 @@ export default function Weighted() {
               {CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Costo/kg $" value={addForm.cost_price_kg} onChange={(v) => setAddForm({ ...addForm, cost_price_kg: v })} />
-            <Field label="Venta/kg $" value={addForm.price_kg} onChange={(v) => setAddForm({ ...addForm, price_kg: v })} />
+          <div className="grid grid-cols-3 gap-2">
+            <Field
+              label="Costo/kg $"
+              value={addForm.cost_price_kg}
+              onChange={(v) => {
+                const newMargin = v && addForm.price_kg ? calcMargin(v, addForm.price_kg) : addForm.margin;
+                setAddForm({ ...addForm, cost_price_kg: v, margin: newMargin });
+              }}
+            />
+            <Field
+              label="Venta/kg $"
+              value={addForm.price_kg}
+              onChange={(v) => {
+                const newMargin = addForm.cost_price_kg && v ? calcMargin(addForm.cost_price_kg, v) : "";
+                setAddForm({ ...addForm, price_kg: v, margin: newMargin });
+              }}
+            />
+            <Field
+              label="Margen %"
+              value={addForm.margin}
+              onChange={(v) => {
+                const newPrice = addForm.cost_price_kg && v !== "" ? calcPriceFromMargin(addForm.cost_price_kg, v) : addForm.price_kg;
+                setAddForm({ ...addForm, margin: v, price_kg: newPrice });
+              }}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Stock inicial (kg)" value={addForm.stock} onChange={(v) => setAddForm({ ...addForm, stock: v })} />
@@ -132,6 +154,7 @@ function WeightedDetail({ product, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: product.name || "", category: product.category || "",
     cost_price_kg: String(product.cost_price_kg ?? ""), price_kg: String(product.price_kg ?? ""),
+    margin: calcMargin(product.cost_price_kg, product.price_kg),
   });
   const [saving, setSaving] = useState(false);
   const confirm = useConfirm();
@@ -170,9 +193,31 @@ function WeightedDetail({ product, onClose, onSaved }) {
           {CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
         </select>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Costo/kg $" value={form.cost_price_kg} onChange={(v) => setForm({ ...form, cost_price_kg: v })} />
-        <Field label="Venta/kg $" value={form.price_kg} onChange={(v) => setForm({ ...form, price_kg: v })} />
+      <div className="grid grid-cols-3 gap-2">
+        <Field
+          label="Costo/kg $"
+          value={form.cost_price_kg}
+          onChange={(v) => {
+            const newMargin = v && form.price_kg ? calcMargin(v, form.price_kg) : form.margin;
+            setForm({ ...form, cost_price_kg: v, margin: newMargin });
+          }}
+        />
+        <Field
+          label="Venta/kg $"
+          value={form.price_kg}
+          onChange={(v) => {
+            const newMargin = form.cost_price_kg && v ? calcMargin(form.cost_price_kg, v) : "";
+            setForm({ ...form, price_kg: v, margin: newMargin });
+          }}
+        />
+        <Field
+          label="Margen %"
+          value={form.margin}
+          onChange={(v) => {
+            const newPrice = form.cost_price_kg && v !== "" ? calcPriceFromMargin(form.cost_price_kg, v) : form.price_kg;
+            setForm({ ...form, margin: v, price_kg: newPrice });
+          }}
+        />
       </div>
       <button onClick={saveFields} disabled={saving} className="w-full py-2.5 bg-[#0040a1] text-white rounded-xl font-bold">
         {saving ? "Guardando..." : "Guardar cambios"}
