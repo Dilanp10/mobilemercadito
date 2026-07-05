@@ -20,7 +20,16 @@ Reglas:
 - Si preguntan por una persona por nombre, buscá en las cuentas (podés buscar aunque el nombre esté incompleto).
 - Cuando muestres listas, priorizá lo más importante (top 5, no más).
 - Si algo no aparece en los datos (ej: producto sin ventas hoy), decilo claro y no inventes números.
-- Por ahora NO podés modificar nada (precios, stock, cuentas). Si te piden un cambio, explicá que por ahora solo consultás.`;
+- Por ahora NO podés modificar nada (precios, stock, cuentas). Si te piden un cambio, explicá que por ahora solo consultás.
+
+UNIDADES (muy importante):
+- Los productos COMUNES (tipo "comun") se venden y se cuentan POR UNIDAD: decí "40 unidades" o "40 u", NUNCA "40 kg".
+- Los productos POR PESO (tipo "por_peso") se venden POR KILO: ahí sí decí "40 kg".
+- Cada resultado de herramienta trae el campo "unidad_stock" o el tipo del producto: respetalo siempre.
+
+BÚSQUEDA DE PRODUCTOS:
+- Si search_product devuelve "sugerencias" (no hubo coincidencia exacta), decile al usuario que no encontraste ese nombre exacto y listale las opciones parecidas numeradas para que elija cuál quiso decir. NO asumas una por tu cuenta.
+- Cuando el usuario elija una de las opciones, volvé a llamar a search_product con el nombre exacto elegido.`;
 
 // Cliente de Supabase. Preferimos service_role (bypass de RLS, acceso total) si
 // está configurado; si no, caemos al JWT del usuario (respeta RLS).
@@ -73,6 +82,37 @@ function startOfPeriodIso(period) {
   }
   return "1970-01-01 00:00:00";
 }
+// Normaliza para comparar: minúsculas y sin tildes ("Azúcar" -> "azucar")
+function normalizeText(s) {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+}
+
+// Distancia de Levenshtein (cantidad de letras de diferencia)
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const curr = [i];
+    for (let j = 1; j <= n; j++) {
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+    prev = curr;
+  }
+  return prev[n];
+}
+
+// Similitud 0..1 entre dos textos ya normalizados
+function similarity(a, b) {
+  if (!a.length && !b.length) return 1;
+  return 1 - levenshtein(a, b) / Math.max(a.length, b.length, 1);
+}
+
 function endOfPeriodIso(period) {
   const now = new Date(Date.now() - 3 * 3600e3);
   if (period === "ayer") return startOfTodayIso();
@@ -158,7 +198,7 @@ const tools = [
       },
       {
         name: "search_product",
-        description: "Busca un producto por nombre parcial. Devuelve nombre, precio de venta, costo, stock. Busca en productos comunes y por peso.",
+        description: "Busca un producto por nombre (tolera errores de tipeo y tildes). Devuelve 'encontrados' con tipo, precio, costo, stock y unidad_stock ('unidades' para comunes, 'kg' para por peso). Si no hay coincidencia exacta devuelve 'sugerencias' con nombres parecidos: en ese caso ofrecé las opciones al usuario para que elija.",
         parameters: {
           type: Type.OBJECT,
           properties: {
@@ -314,18 +354,59 @@ async function runTool(name, args, supabase) {
         supabase
           .from("products")
           .select("id, uuid, name, category, cost_price, unit_price, quantity, barcode")
-          .eq("is_deleted", 0)
-          .ilike("name", `%${args.query}%`)
-          .limit(10),
+          .eq("is_deleted", 0),
         supabase
           .from("weighted_products")
           .select("id, uuid, name, category, cost_price_kg, price_kg, stock, barcode")
-          .eq("is_deleted", 0)
-          .ilike("name", `%${args.query}%`)
-          .limit(10),
+          .eq("is_deleted", 0),
       ]);
       if (e1 || e2) return { error: e1?.message || e2?.message };
-      return { productos: prods || [], por_peso: wps || [] };
+
+      // Unificamos con el tipo y la unidad EXPLÍCITOS para que el modelo no confunda u con kg
+      const all = [
+        ...(prods || []).map((p) => ({
+          tipo: "comun", se_vende_por: "unidad",
+          name: p.name, category: p.category,
+          precio_venta: p.unit_price, costo: p.cost_price,
+          stock: p.quantity, unidad_stock: "unidades",
+          barcode: p.barcode,
+        })),
+        ...(wps || []).map((w) => ({
+          tipo: "por_peso", se_vende_por: "kg",
+          name: w.name, category: w.category,
+          precio_venta_kg: w.price_kg, costo_kg: w.cost_price_kg,
+          stock: w.stock, unidad_stock: "kg",
+          barcode: w.barcode,
+        })),
+      ];
+
+      const q = normalizeText(args.query);
+
+      // 1) Coincidencia por substring (sin tildes ni mayúsculas)
+      const contains = all.filter((p) => normalizeText(p.name).includes(q));
+      if (contains.length > 0) return { encontrados: contains.slice(0, 10) };
+
+      // 2) Búsqueda difusa: tolera errores de tipeo ("hairna" -> "harina")
+      const scored = all
+        .map((p) => {
+          const n = normalizeText(p.name);
+          let score = similarity(n, q);
+          for (const w of n.split(/\s+/)) score = Math.max(score, similarity(w, q));
+          return { p, score };
+        })
+        .filter((x) => x.score >= 0.55)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+
+      if (scored.length === 0) {
+        return { encontrados: [], mensaje: "No hay ningún producto con ese nombre ni con nombre parecido." };
+      }
+      return {
+        encontrados: [],
+        sin_coincidencia_exacta: true,
+        sugerencias: scored.map((x) => x.p),
+        instruccion: "Decile al usuario que no encontraste ese nombre exacto y ofrecele estas opciones parecidas para que elija.",
+      };
     }
 
     if (name === "get_low_stock") {
