@@ -10,6 +10,7 @@ import Accounts from "./pages/Accounts";
 import History from "./pages/History";
 import Cuaderno from "./pages/Cuaderno";
 import Alerts from "./pages/Alerts";
+import Chat from "./pages/Chat";
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = cargando
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/cuaderno" element={<Cuaderno />} />
         <Route path="/historial" element={<History />} />
         <Route path="/avisos" element={<Alerts />} />
+        <Route path="/asistente" element={<Chat />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>

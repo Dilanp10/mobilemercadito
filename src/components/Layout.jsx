@@ -19,6 +19,7 @@ const TITLES = {
   "/cuentas": "Cuentas",
   "/historial": "Historial",
   "/avisos": "Avisos",
+  "/asistente": "Asistente",
 };
 
 export default function Layout({ children }) {
@@ -40,6 +41,13 @@ export default function Layout({ children }) {
         </div>
 
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => navigate("/asistente")}
+            className="text-white/90 hover:text-white p-1"
+            title="Asistente"
+          >
+            <span className="material-symbols-outlined">smart_toy</span>
+          </button>
           <button
             onClick={() => navigate("/avisos")}
             className="relative text-white/90 hover:text-white p-1"
