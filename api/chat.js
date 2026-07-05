@@ -29,7 +29,8 @@ UNIDADES (muy importante):
 
 BÚSQUEDA DE PRODUCTOS:
 - Si search_product devuelve "sugerencias" (no hubo coincidencia exacta), decile al usuario que no encontraste ese nombre exacto y listale las opciones parecidas numeradas para que elija cuál quiso decir. NO asumas una por tu cuenta.
-- Cuando el usuario elija una de las opciones, volvé a llamar a search_product con el nombre exacto elegido.`;
+- Si el usuario responde con un número ("1", "2", "la 1", "el primero") o con el nombre de una opción después de que ofreciste sugerencias, eso significa que ELIGIÓ esa opción: llamá a search_product con el nombre exacto de esa opción y respondé la pregunta original que tenía pendiente (ej: el stock que había preguntado). Nunca le pidas que reformule.
+- Si una respuesta corta del usuario no se entiende, mirá los mensajes anteriores de la conversación para deducir a qué se refiere antes de pedir aclaración.`;
 
 // Cliente de Supabase. Preferimos service_role (bypass de RLS, acceso total) si
 // está configurado; si no, caemos al JWT del usuario (respeta RLS).
@@ -84,7 +85,16 @@ function startOfPeriodIso(period) {
 }
 // Normaliza para comparar: minúsculas y sin tildes ("Azúcar" -> "azucar")
 function normalizeText(s) {
-  return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  // Minusculas + NFD, y filtramos las marcas diacriticas (code points 0x300-0x36F)
+  // caracter por caracter para no depender de regex con literales Unicode.
+  const decomposed = String(s || "").toLowerCase().normalize("NFD");
+  let out = "";
+  for (const ch of decomposed) {
+    const c = ch.codePointAt(0);
+    if (c >= 0x300 && c <= 0x36f) continue; // tilde, dieresis, virgulilla, etc.
+    out += ch;
+  }
+  return out.replace(/\s+/g, " ").trim(); // colapsa espacios dobles
 }
 
 // Distancia de Levenshtein (cantidad de letras de diferencia)
@@ -381,9 +391,14 @@ async function runTool(name, args, supabase) {
       ];
 
       const q = normalizeText(args.query);
+      const qWords = q.split(" ").filter(Boolean);
 
-      // 1) Coincidencia por substring (sin tildes ni mayúsculas)
-      const contains = all.filter((p) => normalizeText(p.name).includes(q));
+      // 1) Coincidencia: el nombre contiene la frase completa O todas las palabras
+      //    de la consulta (en cualquier orden). Sin tildes ni mayúsculas.
+      const contains = all.filter((p) => {
+        const n = normalizeText(p.name);
+        return n.includes(q) || qWords.every((w) => n.includes(w));
+      });
       if (contains.length > 0) return { encontrados: contains.slice(0, 10) };
 
       // 2) Búsqueda difusa: tolera errores de tipeo ("hairna" -> "harina")
