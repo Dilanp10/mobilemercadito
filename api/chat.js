@@ -6,7 +6,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 
-const MODEL = "gemini-2.5-flash";
+// Modelos en orden de preferencia: si uno está saturado (503) o rate-limited
+// (429), probamos el siguiente.
+const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
 
 const SYSTEM_INSTRUCTION = `Sos "Beto", el asistente del negocio SuperBeto (una despensa/almacén argentino).
 El dueño te habla en español (rioplatense) para consultar información del negocio.
@@ -413,14 +415,32 @@ export default async function handler(req, res) {
     }
     contents.push({ role: "user", parts: [{ text: message }] });
 
+    // Llama a Gemini probando modelos alternativos si el principal está
+    // saturado (503) o rate-limited (429).
+    async function callGemini() {
+      let lastErr;
+      for (const model of MODELS) {
+        try {
+          return await ai.models.generateContent({
+            model,
+            contents,
+            config: { systemInstruction: SYSTEM_INSTRUCTION, tools },
+          });
+        } catch (e) {
+          lastErr = e;
+          const msg = String(e?.message || e);
+          // Si es saturación o rate limit, probamos el siguiente modelo
+          if (/503|429|UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand/i.test(msg)) continue;
+          throw e; // otros errores (clave inválida, etc.) se propagan directo
+        }
+      }
+      throw lastErr;
+    }
+
     // Loop: llamar a Gemini, si pide tools ejecutarlas y volver a preguntar.
     let finalText = "";
     for (let step = 0; step < 6; step++) {
-      const response = await ai.models.generateContent({
-        model: MODEL,
-        contents,
-        config: { systemInstruction: SYSTEM_INSTRUCTION, tools },
-      });
+      const response = await callGemini();
 
       const cand = response?.candidates?.[0];
       const parts = cand?.content?.parts || [];
@@ -452,6 +472,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply: finalText });
   } catch (e) {
     console.error("chat error:", e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    const msg = String(e?.message || e);
+    if (/503|429|UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand/i.test(msg)) {
+      return res.status(503).json({
+        error: "El asistente está saturado en este momento (mucha demanda en Google). Esperá unos minutos y probá de nuevo.",
+      });
+    }
+    return res.status(500).json({ error: msg });
   }
 }
