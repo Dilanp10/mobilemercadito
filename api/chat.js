@@ -20,16 +20,21 @@ Reglas:
 - Si algo no aparece en los datos (ej: producto sin ventas hoy), decilo claro y no inventes números.
 - Por ahora NO podés modificar nada (precios, stock, cuentas). Si te piden un cambio, explicá que por ahora solo consultás.`;
 
-// Cliente de Supabase autenticado con el token del usuario (respeta RLS)
+// Cliente de Supabase. Preferimos service_role (bypass de RLS, acceso total) si
+// está configurado; si no, caemos al JWT del usuario (respeta RLS).
 function makeSupabase(token) {
-  return createClient(
-    process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
-    {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceKey) {
+    return createClient(url, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
-    }
-  );
+    });
+  }
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════
