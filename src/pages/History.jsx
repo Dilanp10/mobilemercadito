@@ -27,7 +27,7 @@ export default function History() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("sales").select("*").order("created_at", { ascending: false });
+      const { data } = await supabase.from("sales").select("*").eq("is_deleted", 0).order("created_at", { ascending: false });
       setSales(data || []);
       setLoading(false);
     })();

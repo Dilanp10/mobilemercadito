@@ -2,16 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabase";
 
 const SUGGESTIONS = [
-  "¿Qué se vendió en la última hora?",
   "¿Cuánto vendí hoy?",
   "¿Qué se está por vencer?",
+  "Cambiale el precio a un producto",
+  "Sumale stock a un producto",
   "¿Cuáles son los más vendidos de la semana?",
   "¿Cuánto vale el inventario?",
 ];
 
 const WELCOME = {
   role: "assistant",
-  text: "¡Hola! Soy Beto, el asistente del negocio. Puedo consultarte ventas, cuentas, productos, stock, vencimientos e inventario. ¿En qué te ayudo?",
+  text: "¡Hola! Soy Beto, el asistente del negocio. Puedo consultarte ventas, cuentas, stock y vencimientos, y también modificar productos: precio, costo, nombre, categoría y stock. ¿En qué te ayudo?",
 };
 
 export default function Chat() {
@@ -71,7 +72,7 @@ export default function Chat() {
         </div>
         <div>
           <p className="font-bold text-[#1e293b] leading-tight">Beto — Asistente</p>
-          <p className="text-xs text-[#64748b]">Solo consulta (por ahora)</p>
+          <p className="text-xs text-[#64748b]">Consulta y modifica productos</p>
         </div>
       </div>
 

@@ -26,7 +26,7 @@ export default function Dashboard() {
       setLoading(true);
       try {
         const [s, p, w] = await Promise.all([
-          supabase.from("sales").select("*"),
+          supabase.from("sales").select("*").eq("is_deleted", 0),
           supabase.from("products").select("*").eq("is_deleted", 0),
           supabase.from("weighted_products").select("*").eq("is_deleted", 0),
         ]);

@@ -96,7 +96,7 @@ function AccountDetail({ account, onClose }) {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("sales").select("*").eq("account_id", String(account.id)).order("created_at", { ascending: false });
+      const { data } = await supabase.from("sales").select("*").eq("account_id", String(account.id)).eq("is_deleted", 0).order("created_at", { ascending: false });
       setSales(data || []);
       setLoading(false);
     })();

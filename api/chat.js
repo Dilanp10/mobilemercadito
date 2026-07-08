@@ -1,7 +1,10 @@
 // Función serverless de Vercel: /api/chat
 // Recibe { message, history, supabase_token } y devuelve la respuesta del asistente.
 // Usa Gemini con "function calling" para consultar Supabase.
-// Modo actual: SOLO CONSULTA (no modifica datos).
+// Modo: consulta + modificación de PRODUCTOS (precio, costo, nombre, categoría,
+// stock por fardos). Las ventas y cuentas siguen siendo solo consulta.
+// SEGURIDAD: requiere sesión válida de Supabase (el endpoint es público en
+// Vercel; sin este chequeo cualquiera con la URL podría leer/modificar datos).
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
@@ -20,7 +23,15 @@ Reglas:
 - Si preguntan por una persona por nombre, buscá en las cuentas (podés buscar aunque el nombre esté incompleto).
 - Cuando muestres listas, priorizá lo más importante (top 5, no más).
 - Si algo no aparece en los datos (ej: producto sin ventas hoy), decilo claro y no inventes números.
-- Por ahora NO podés modificar nada (precios, stock, cuentas). Si te piden un cambio, explicá que por ahora solo consultás.
+
+MODIFICACIONES (podés cambiar datos de PRODUCTOS):
+- Podés: cambiar precio de venta, costo, nombre y categoría (update_product_info); sumar stock como fardo nuevo (add_stock_batch); o fijar el stock total en un número exacto (set_stock).
+- NO podés: crear/borrar productos, ni tocar ventas, cuentas u ofertas. Si te lo piden, decilo con naturalidad.
+- ANTES de ejecutar un cambio, SIEMPRE mostrá qué vas a cambiar (valor actual → valor nuevo) y pedí confirmación. Recién cuando el usuario confirme ("sí", "dale", "confirmo"), llamá a la herramienta. Si el usuario ya confirmó explícitamente, ejecutá directo.
+- Después de ejecutar, informá el resultado con el valor nuevo (la herramienta te lo devuelve).
+- Para modificar, primero buscá el producto con search_product: ahí obtenés su product_uuid y tipo. NUNCA muestres el product_uuid al usuario (es un dato interno).
+- Nunca inventes un product_uuid: usá solo los que devolvió search_product en esta conversación.
+- "Sumale 10" = add_stock_batch con quantity 10. "Poné el stock en 10" = set_stock con new_total 10. Si no queda claro cuál de las dos quiere, preguntá.
 
 UNIDADES (muy importante):
 - Los productos COMUNES (tipo "comun") se venden y se cuentan POR UNIDAD: decí "40 unidades" o "40 u", NUNCA "40 kg".
@@ -121,6 +132,22 @@ function levenshtein(a, b) {
 function similarity(a, b) {
   if (!a.length && !b.length) return 1;
   return 1 - levenshtein(a, b) / Math.max(a.length, b.length, 1);
+}
+
+// Marca de tiempo AR ('YYYY-MM-DD HH:MM:SS'), igual que el resto de la app,
+// para que el sync de la compu aplique bien los cambios hechos por el chat.
+function nowAR() {
+  return new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 19).replace("T", " ");
+}
+
+// Stock total actual de un producto (suma de fardos vivos)
+async function batchTotal(supabase, productUuid) {
+  const { data } = await supabase
+    .from("product_batches")
+    .select("quantity")
+    .eq("product_uuid", productUuid)
+    .eq("is_deleted", 0);
+  return (data || []).reduce((a, b) => a + Number(b.quantity || 0), 0);
 }
 
 function endOfPeriodIso(period) {
@@ -237,6 +264,49 @@ const tools = [
         description: "Valor total del inventario al costo y al precio de venta.",
         parameters: { type: Type.OBJECT, properties: {} },
       },
+      {
+        name: "update_product_info",
+        description: "Modifica datos de un producto: precio de venta, costo, nombre y/o categoría. Solo los campos que se pasen. Usá el product_uuid y tipo que devolvió search_product. SIEMPRE pedí confirmación al usuario antes de llamar esta herramienta.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            product_uuid: { type: Type.STRING, description: "uuid del producto (de search_product)" },
+            tipo: { type: Type.STRING, description: "'comun' | 'por_peso' (de search_product)" },
+            sale_price: { type: Type.NUMBER, description: "Nuevo precio de venta ($ por unidad si es comun, $ por kg si es por_peso)" },
+            cost_price: { type: Type.NUMBER, description: "Nuevo costo ($ por unidad o por kg según el tipo)" },
+            new_name: { type: Type.STRING, description: "Nuevo nombre del producto" },
+            category: { type: Type.STRING, description: "Nueva categoría" },
+          },
+          required: ["product_uuid", "tipo"],
+        },
+      },
+      {
+        name: "add_stock_batch",
+        description: "SUMA stock a un producto agregando un fardo/tanda nuevo (ej: 'sumale 10 unidades', 'llegaron 5 kg'). Vencimiento opcional. SIEMPRE pedí confirmación antes de llamarla.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            product_uuid: { type: Type.STRING, description: "uuid del producto (de search_product)" },
+            tipo: { type: Type.STRING, description: "'comun' | 'por_peso'" },
+            quantity: { type: Type.NUMBER, description: "Cantidad a sumar (unidades o kg según el tipo)" },
+            expiry_date: { type: Type.STRING, description: "Vencimiento del fardo en formato YYYY-MM-DD (opcional)" },
+          },
+          required: ["product_uuid", "tipo", "quantity"],
+        },
+      },
+      {
+        name: "set_stock",
+        description: "FIJA el stock total de un producto en un número exacto (ej: 'poné el stock en 12'). Si hay que bajar, descuenta de los fardos más viejos primero (FIFO); si hay que subir, agrega un fardo sin vencimiento. SIEMPRE pedí confirmación antes de llamarla.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            product_uuid: { type: Type.STRING, description: "uuid del producto (de search_product)" },
+            tipo: { type: Type.STRING, description: "'comun' | 'por_peso'" },
+            new_total: { type: Type.NUMBER, description: "Stock total final deseado (unidades o kg)" },
+          },
+          required: ["product_uuid", "tipo", "new_total"],
+        },
+      },
     ],
   },
 ];
@@ -253,6 +323,7 @@ async function runTool(name, args, supabase) {
         .from("sales")
         .select("product_name, quantity, total_price, product_type, payment_method, account_id, created_at")
         .gte("created_at", since)
+        .eq("is_deleted", 0)
         .neq("product_type", "account_close")
         .order("created_at", { ascending: false })
         .limit(50);
@@ -268,6 +339,7 @@ async function runTool(name, args, supabase) {
         .from("sales")
         .select("total_price, quantity, product_type, product_id, product_name, sale_group_id, uuid, account_id")
         .gte("created_at", from)
+        .eq("is_deleted", 0)
         .neq("product_type", "account_close");
       if (to) q = q.lt("created_at", to);
       const { data, error } = await q;
@@ -306,6 +378,7 @@ async function runTool(name, args, supabase) {
         .from("sales")
         .select("product_name, quantity, product_type")
         .gte("created_at", from)
+        .eq("is_deleted", 0)
         .neq("product_type", "account_close")
         .neq("product_type", "custom");
       if (to) q = q.lt("created_at", to);
@@ -337,6 +410,7 @@ async function runTool(name, args, supabase) {
         .from("sales")
         .select("total_price, product_type")
         .eq("account_id", String(args.account_id))
+        .eq("is_deleted", 0)
         .order("created_at", { ascending: false });
       if (error) return { error: error.message };
       const compras = (sales || [])
@@ -353,6 +427,7 @@ async function runTool(name, args, supabase) {
         .from("sales")
         .select("created_at, product_name, quantity, total_price, product_type, payment_method")
         .eq("account_id", String(args.account_id))
+        .eq("is_deleted", 0)
         .order("created_at", { ascending: false })
         .limit(Number(args.limit || 10));
       if (error) return { error: error.message };
@@ -376,6 +451,7 @@ async function runTool(name, args, supabase) {
       const all = [
         ...(prods || []).map((p) => ({
           tipo: "comun", se_vende_por: "unidad",
+          product_uuid: p.uuid, // interno: para update_product_info / add_stock_batch / set_stock
           name: p.name, category: p.category,
           precio_venta: p.unit_price, costo: p.cost_price,
           stock: p.quantity, unidad_stock: "unidades",
@@ -383,6 +459,7 @@ async function runTool(name, args, supabase) {
         })),
         ...(wps || []).map((w) => ({
           tipo: "por_peso", se_vende_por: "kg",
+          product_uuid: w.uuid,
           name: w.name, category: w.category,
           precio_venta_kg: w.price_kg, costo_kg: w.cost_price_kg,
           stock: w.stock, unidad_stock: "kg",
@@ -475,6 +552,142 @@ async function runTool(name, args, supabase) {
       return { valor_al_costo: costo, valor_al_precio_venta: venta, ganancia_potencial: venta - costo };
     }
 
+    // ─── HERRAMIENTAS DE MODIFICACIÓN (solo productos) ────────────────────
+    // Nota de conflicto: si la compu tiene ese registro con cambios sin subir,
+    // el sync de la compu pisa lo de la nube ("la compu gana") — igual que las
+    // ediciones hechas desde las pantallas del celu.
+
+    if (name === "update_product_info") {
+      const table = args.tipo === "por_peso" ? "weighted_products" : "products";
+      const updates = {};
+      if (args.new_name != null && String(args.new_name).trim()) updates.name = String(args.new_name).trim();
+      if (args.category != null && String(args.category).trim()) updates.category = String(args.category).trim();
+      if (args.sale_price != null) {
+        const v = Number(args.sale_price);
+        if (isNaN(v) || v < 0) return { error: "Precio de venta inválido" };
+        updates[table === "products" ? "unit_price" : "price_kg"] = v;
+      }
+      if (args.cost_price != null) {
+        const v = Number(args.cost_price);
+        if (isNaN(v) || v < 0) return { error: "Costo inválido" };
+        updates[table === "products" ? "cost_price" : "cost_price_kg"] = v;
+      }
+      if (Object.keys(updates).length === 0) return { error: "No se indicó ningún cambio" };
+      updates.updated_at = nowAR();
+
+      const { data, error } = await supabase
+        .from(table)
+        .update(updates)
+        .eq("uuid", args.product_uuid)
+        .eq("is_deleted", 0)
+        .select();
+      if (error) return { error: error.message };
+      if (!data || data.length === 0) return { error: "Producto no encontrado (¿el uuid es el que devolvió search_product?)" };
+      const p = data[0];
+      return {
+        ok: true,
+        producto: p.name,
+        valores_actuales: table === "products"
+          ? { precio_venta: p.unit_price, costo: p.cost_price, category: p.category }
+          : { precio_venta_kg: p.price_kg, costo_kg: p.cost_price_kg, category: p.category },
+      };
+    }
+
+    if (name === "add_stock_batch") {
+      const source = args.tipo === "por_peso" ? "weighted_products" : "products";
+      const qty = Number(args.quantity);
+      if (!qty || qty <= 0) return { error: "La cantidad a sumar debe ser mayor a 0" };
+
+      const { data: prods, error: pe } = await supabase
+        .from(source).select("uuid, name").eq("uuid", args.product_uuid).eq("is_deleted", 0);
+      if (pe) return { error: pe.message };
+      if (!prods || prods.length === 0) return { error: "Producto no encontrado" };
+
+      const { error } = await supabase.from("product_batches").insert({
+        uuid: crypto.randomUUID(),
+        product_uuid: args.product_uuid,
+        product_source: source,
+        quantity: qty,
+        expiry_date: args.expiry_date || null,
+        entry_date: nowAR(),
+        is_deleted: 0,
+        created_at: nowAR(),
+        updated_at: nowAR(),
+      });
+      if (error) return { error: error.message };
+
+      const total = await batchTotal(supabase, args.product_uuid);
+      return {
+        ok: true, producto: prods[0].name, sumado: qty,
+        stock_total: total, unidad: source === "products" ? "unidades" : "kg",
+        vencimiento: args.expiry_date || "sin vencimiento",
+      };
+    }
+
+    if (name === "set_stock") {
+      const source = args.tipo === "por_peso" ? "weighted_products" : "products";
+      const target = Number(args.new_total);
+      if (isNaN(target) || target < 0) return { error: "El stock nuevo debe ser 0 o más" };
+
+      const { data: prods, error: pe } = await supabase
+        .from(source).select("uuid, name").eq("uuid", args.product_uuid).eq("is_deleted", 0);
+      if (pe) return { error: pe.message };
+      if (!prods || prods.length === 0) return { error: "Producto no encontrado" };
+
+      // Fardos vivos en orden FIFO (vence antes primero, sin vencimiento al final)
+      const { data: batches, error: be } = await supabase
+        .from("product_batches")
+        .select("uuid, quantity, expiry_date, entry_date")
+        .eq("product_uuid", args.product_uuid)
+        .eq("is_deleted", 0)
+        .gt("quantity", 0)
+        .order("expiry_date", { ascending: true, nullsFirst: false })
+        .order("entry_date", { ascending: true });
+      if (be) return { error: be.message };
+
+      const current = (batches || []).reduce((a, b) => a + Number(b.quantity || 0), 0);
+      const delta = target - current;
+
+      if (Math.abs(delta) < 1e-9) {
+        return { ok: true, producto: prods[0].name, mensaje: "El stock ya estaba en ese valor", stock_total: current };
+      }
+
+      if (delta > 0) {
+        // Subir: la diferencia entra como fardo nuevo sin vencimiento
+        const { error } = await supabase.from("product_batches").insert({
+          uuid: crypto.randomUUID(),
+          product_uuid: args.product_uuid,
+          product_source: source,
+          quantity: delta,
+          expiry_date: null,
+          entry_date: nowAR(),
+          is_deleted: 0,
+          created_at: nowAR(),
+          updated_at: nowAR(),
+        });
+        if (error) return { error: error.message };
+      } else {
+        // Bajar: descontar FIFO de los fardos más viejos
+        let remaining = -delta;
+        for (const b of batches) {
+          if (remaining <= 1e-9) break;
+          const take = Math.min(Number(b.quantity), remaining);
+          const { error } = await supabase
+            .from("product_batches")
+            .update({ quantity: Number(b.quantity) - take, updated_at: nowAR() })
+            .eq("uuid", b.uuid);
+          if (error) return { error: error.message };
+          remaining -= take;
+        }
+      }
+
+      return {
+        ok: true, producto: prods[0].name,
+        stock_anterior: current, stock_total: target,
+        unidad: source === "products" ? "unidades" : "kg",
+      };
+    }
+
     return { error: `Herramienta desconocida: ${name}` };
   } catch (e) {
     return { error: String(e?.message || e) };
@@ -499,6 +712,23 @@ export default async function handler(req, res) {
     const { message, history = [], supabase_token } = req.body || {};
     if (!message?.trim()) {
       return res.status(400).json({ error: "Falta el mensaje." });
+    }
+
+    // ─── AUTENTICACIÓN OBLIGATORIA ──────────────────────────────────────
+    // Solo usuarios logueados en la app pueden usar el asistente. Sin esto,
+    // cualquiera que descubra la URL podría consultar ventas/cuentas de
+    // clientes y modificar productos (y gastar la cuota de Gemini).
+    if (!supabase_token) {
+      return res.status(401).json({ error: "Tenés que iniciar sesión para usar el asistente." });
+    }
+    const authUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const authAnon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    const authClient = createClient(authUrl, authAnon, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: authData, error: authError } = await authClient.auth.getUser(supabase_token);
+    if (authError || !authData?.user) {
+      return res.status(401).json({ error: "Sesión vencida o inválida. Cerrá sesión y volvé a entrar." });
     }
 
     const supabase = makeSupabase(supabase_token);
