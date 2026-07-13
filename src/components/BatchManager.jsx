@@ -117,13 +117,25 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
                 {editId === b.uuid ? (
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
-                      <input type="number" step={step} value={editForm.quantity}
-                        onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                        className="w-full px-2 py-1 border border-[#0040a1] rounded text-sm" />
-                      <input type="date" value={editForm.expiry_date}
-                        onChange={(e) => setEditForm({ ...editForm, expiry_date: e.target.value })}
-                        className="w-full px-2 py-1 border border-[#0040a1] rounded text-sm" />
+                      <div>
+                        <label className="block text-[10px] text-[#64748b] mb-1">Cantidad ({unit})</label>
+                        <input type="number" inputMode="decimal" step={step} value={editForm.quantity}
+                          onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                          className="w-full px-2 py-1.5 border border-[#0040a1] rounded-lg text-sm bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-[#64748b] mb-1">Vencimiento</label>
+                        {/* min-height: el input date vacío colapsa/queda invisible en algunos celulares */}
+                        <input type="date" value={editForm.expiry_date}
+                          onChange={(e) => setEditForm({ ...editForm, expiry_date: e.target.value })}
+                          className="w-full px-2 py-1.5 border border-[#0040a1] rounded-lg text-sm bg-white"
+                          style={{ minHeight: 36 }} />
+                      </div>
                     </div>
+                    {editForm.expiry_date && (
+                      <button onClick={() => setEditForm({ ...editForm, expiry_date: "" })}
+                        className="text-[11px] text-[#64748b] underline">Quitar vencimiento</button>
+                    )}
                     <div className="flex gap-2">
                       <button onClick={() => saveEdit(b)} className="flex-1 py-1.5 bg-[#10b981] text-white rounded text-xs font-semibold">OK</button>
                       <button onClick={() => setEditId(null)} className="px-3 py-1.5 bg-[#e2e8f0] rounded text-xs">✕</button>
@@ -131,13 +143,17 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    <div className="text-sm">
+                    {/* Tocar el fardo también abre la edición (el lápiz era muy chico) */}
+                    <button
+                      onClick={() => { setEditId(b.uuid); setEditForm({ quantity: String(b.quantity), expiry_date: b.expiry_date ? b.expiry_date.slice(0, 10) : "" }); }}
+                      className="flex-1 text-left text-sm"
+                    >
                       <span className="font-mono text-[10px] text-[#94a3b8] mr-2">#{i + 1}</span>
                       <b className="text-[#1e293b]">{formatNum(b.quantity, b.quantity % 1 === 0 ? 0 : 2)} {unit}</b>
                       <span className={`ml-2 text-xs ${expired ? "text-[#ef4444] font-semibold" : "text-[#64748b]"}`}>
-                        {b.expiry_date ? `vence ${b.expiry_date}${expired ? " ⚠️" : ""}` : "sin venc."}
+                        {b.expiry_date ? `vence ${b.expiry_date}${expired ? " ⚠️" : ""}` : "sin venc. — tocá para agregar"}
                       </span>
-                    </div>
+                    </button>
                     <div className="flex gap-1">
                       <button onClick={() => { setEditId(b.uuid); setEditForm({ quantity: String(b.quantity), expiry_date: b.expiry_date ? b.expiry_date.slice(0, 10) : "" }); }}
                         className="p-1"><span className="material-symbols-outlined text-[18px] text-[#0040a1]">edit</span></button>
