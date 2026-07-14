@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
 import { formatMoney, formatNum } from "../utils";
 import { Loader } from "./Products";
+import Proveedores from "./Proveedores";
 
 function toDate(s) {
   if (!s) return new Date(0);
@@ -32,6 +33,7 @@ export default function Cuaderno() {
   // Nombres de productos padre de los fardos (productos viejos que aún tienen movimientos)
   const [parentNames, setParentNames] = useState({}); // { uuid: { name, source } }
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("movimientos"); // "movimientos" | "proveedores"
 
   async function load() {
     setLoading(true);
@@ -179,83 +181,109 @@ export default function Cuaderno() {
         </p>
       </div>
 
-      {/* Resumen */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-[#0040a1] text-[18px]">inventory_2</span>
-            <span className="text-xs text-[#64748b]">Productos nuevos</span>
-          </div>
-          <p className="text-2xl font-extrabold text-[#0040a1]">{totalNuevos}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-[#f59e0b] text-[18px]">inbox</span>
-            <span className="text-xs text-[#64748b]">Fardos sumados</span>
-          </div>
-          <p className="text-2xl font-extrabold text-[#f59e0b]">{totalFardos}</p>
-        </div>
+      {/* Tabs: Movimientos (timeline de hoy/ayer) vs Proveedores (deuda) */}
+      <div className="flex gap-2 bg-white rounded-2xl p-1.5 border border-[#e2e8f0]">
+        <button
+          onClick={() => setTab("movimientos")}
+          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            tab === "movimientos" ? "bg-[#0040a1] text-white" : "text-[#64748b]"
+          }`}
+        >
+          📋 Movimientos
+        </button>
+        <button
+          onClick={() => setTab("proveedores")}
+          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            tab === "proveedores" ? "bg-[#0040a1] text-white" : "text-[#64748b]"
+          }`}
+        >
+          🚚 Proveedores
+        </button>
       </div>
 
-      {/* Acción */}
-      <button
-        onClick={load}
-        className="w-full py-2 bg-white border border-[#e2e8f0] rounded-xl text-sm text-[#0040a1] font-semibold flex items-center justify-center gap-2"
-      >
-        <span className="material-symbols-outlined text-[18px]">refresh</span>
-        Actualizar
-      </button>
-
-      {loading ? <Loader /> : events.length === 0 ? (
-        <div className="bg-white rounded-2xl p-10 border border-[#e2e8f0] text-center">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-[#0040a1]/10 flex items-center justify-center">
-            <span className="material-symbols-outlined text-3xl text-[#0040a1]">menu_book</span>
-          </div>
-          <p className="font-semibold text-[#1e293b]">No cargaste nada en los últimos 2 días</p>
-          <p className="text-sm text-[#94a3b8] mt-1">Cuando agregues productos o sumes fardos, van a aparecer acá.</p>
-        </div>
+      {tab === "proveedores" ? (
+        <Proveedores />
       ) : (
-        <div className="space-y-4">
-          {groups.map(([day, items]) => (
-            <div key={day}>
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-base font-bold text-[#1e293b]">{day}</h3>
-                <span className="text-xs text-[#94a3b8]">{items.length} {items.length === 1 ? "mov." : "movs."}</span>
-                <div className="flex-1 h-px bg-[#e2e8f0]" />
+        <>
+          {/* Resumen */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="material-symbols-outlined text-[#0040a1] text-[18px]">inventory_2</span>
+                <span className="text-xs text-[#64748b]">Productos nuevos</span>
               </div>
-              <div className="space-y-2">
-                {items.map((ev) => (
-                  <div key={ev.id} className="bg-white border border-[#e2e8f0] rounded-2xl p-3 flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: `${ev.color}15` }}
-                    >
-                      <span className="material-symbols-outlined text-[20px]" style={{ color: ev.color }}>
-                        {ev.icon}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-[#1e293b] text-sm truncate">{ev.title}</p>
-                        <span className="text-[9px] text-[#94a3b8] shrink-0">{timeOf(ev.when)}</span>
-                      </div>
-                      <p className="text-xs text-[#64748b] truncate">
-                        {ev.type === "batch" ? ev.subtitle : ev.subtitle}
-                      </p>
-                      <p className="text-[11px] text-[#94a3b8] truncate">{ev.detail}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-base font-extrabold" style={{ color: ev.color }}>{ev.unit}</p>
-                      <p className="text-[9px] text-[#94a3b8] uppercase font-semibold">
-                        {ev.type === "batch" ? "Fardo" : "Nuevo"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <p className="text-2xl font-extrabold text-[#0040a1]">{totalNuevos}</p>
             </div>
-          ))}
-        </div>
+            <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="material-symbols-outlined text-[#f59e0b] text-[18px]">inbox</span>
+                <span className="text-xs text-[#64748b]">Fardos sumados</span>
+              </div>
+              <p className="text-2xl font-extrabold text-[#f59e0b]">{totalFardos}</p>
+            </div>
+          </div>
+
+          {/* Acción */}
+          <button
+            onClick={load}
+            className="w-full py-2 bg-white border border-[#e2e8f0] rounded-xl text-sm text-[#0040a1] font-semibold flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">refresh</span>
+            Actualizar
+          </button>
+
+          {loading ? <Loader /> : events.length === 0 ? (
+            <div className="bg-white rounded-2xl p-10 border border-[#e2e8f0] text-center">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-[#0040a1]/10 flex items-center justify-center">
+                <span className="material-symbols-outlined text-3xl text-[#0040a1]">menu_book</span>
+              </div>
+              <p className="font-semibold text-[#1e293b]">No cargaste nada en los últimos 2 días</p>
+              <p className="text-sm text-[#94a3b8] mt-1">Cuando agregues productos o sumes fardos, van a aparecer acá.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {groups.map(([day, items]) => (
+                <div key={day}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-base font-bold text-[#1e293b]">{day}</h3>
+                    <span className="text-xs text-[#94a3b8]">{items.length} {items.length === 1 ? "mov." : "movs."}</span>
+                    <div className="flex-1 h-px bg-[#e2e8f0]" />
+                  </div>
+                  <div className="space-y-2">
+                    {items.map((ev) => (
+                      <div key={ev.id} className="bg-white border border-[#e2e8f0] rounded-2xl p-3 flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: `${ev.color}15` }}
+                        >
+                          <span className="material-symbols-outlined text-[20px]" style={{ color: ev.color }}>
+                            {ev.icon}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-[#1e293b] text-sm truncate">{ev.title}</p>
+                            <span className="text-[9px] text-[#94a3b8] shrink-0">{timeOf(ev.when)}</span>
+                          </div>
+                          <p className="text-xs text-[#64748b] truncate">
+                            {ev.type === "batch" ? ev.subtitle : ev.subtitle}
+                          </p>
+                          <p className="text-[11px] text-[#94a3b8] truncate">{ev.detail}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-base font-extrabold" style={{ color: ev.color }}>{ev.unit}</p>
+                          <p className="text-[9px] text-[#94a3b8] uppercase font-semibold">
+                            {ev.type === "batch" ? "Fardo" : "Nuevo"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
