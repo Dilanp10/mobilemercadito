@@ -14,12 +14,42 @@ function toDate(str) {
   return new Date(str.replace(" ", "T"));
 }
 
+// Inicio del día (00:00) de una fecha
+function startOfDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Etiqueta corta para el botón de cada día (i = 0 es hoy)
+function dayChipLabel(d, i) {
+  if (i === 0) return "Hoy";
+  if (i === 1) return "Ayer";
+  return d.toLocaleDateString("es-AR", { weekday: "short" });
+}
+
+// Etiqueta larga para mostrar qué día se está viendo
+function dayFullLabel(d) {
+  const s = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export default function Dashboard() {
   const [sales, setSales] = useState([]);
   const [products, setProducts] = useState([]);
   const [weighted, setWeighted] = useState([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("hoy");
+  // Día específico seleccionado cuando el período es "hoy" (por defecto: hoy)
+  const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
+
+  // Últimos 7 días (hoy + 6 anteriores) para el selector de día
+  const dayOptions = useMemo(() => {
+    const base = startOfDay(new Date());
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() - i);
+      return d;
+    });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -47,7 +77,12 @@ export default function Dashboard() {
     return sales.filter((s) => {
       if (s.product_type === "account_close") return false;
       const d = toDate(s.created_at);
-      if (period === "hoy") return d >= startOf(now);
+      if (period === "hoy") {
+        const desde = startOf(selectedDay);
+        const hasta = new Date(desde);
+        hasta.setDate(hasta.getDate() + 1);
+        return d >= desde && d < hasta;
+      }
       if (period === "semana") {
         const c = new Date(now);
         c.setDate(c.getDate() - 6);
@@ -62,7 +97,7 @@ export default function Dashboard() {
       }
       return true;
     });
-  }, [sales, period]);
+  }, [sales, period, selectedDay]);
 
   // Costo de una lista de ventas (busca el producto por id y, si no, por nombre)
   function calcCosto(list) {
@@ -137,12 +172,37 @@ export default function Dashboard() {
       {/* Selector de período */}
       <div className="flex gap-1 bg-white rounded-xl p-1 border border-[#e2e8f0]">
         {PERIODS.map((p) => (
-          <button key={p.key} onClick={() => setPeriod(p.key)}
+          <button key={p.key} onClick={() => {
+              setPeriod(p.key);
+              // Al volver a tocar "Hoy" arrancamos siempre mostrando el día de hoy
+              if (p.key === "hoy") setSelectedDay(startOfDay(new Date()));
+            }}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${period === p.key ? "bg-[#0040a1] text-white" : "text-[#64748b]"}`}>
             {p.label}
           </button>
         ))}
       </div>
+
+      {/* Selector de día (solo cuando el período es "Hoy") */}
+      {period === "hoy" && (
+        <div className="bg-white rounded-xl p-3 border border-[#e2e8f0]">
+          <p className="text-xs text-[#64748b] mb-2">Elegí el día que querés ver</p>
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {dayOptions.map((d, i) => {
+              const activo = startOfDay(d).getTime() === startOfDay(selectedDay).getTime();
+              return (
+                <button key={d.toISOString()} onClick={() => setSelectedDay(d)}
+                  className={`flex-shrink-0 min-w-[64px] rounded-xl py-2 px-2 flex flex-col items-center transition-all border ${
+                    activo ? "bg-[#0040a1] text-white border-[#0040a1]" : "bg-[#f8fafc] text-[#64748b] border-[#e2e8f0]"}`}>
+                  <span className="text-[11px] font-semibold capitalize leading-tight">{dayChipLabel(d, i)}</span>
+                  <span className={`text-lg font-extrabold leading-tight ${activo ? "text-white" : "text-[#1e293b]"}`}>{d.getDate()}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[13px] font-semibold text-[#0040a1] mt-2">📅 {dayFullLabel(selectedDay)}</p>
+        </div>
+      )}
 
       {/* Ganancia combinada destacada */}
       <div className="bg-gradient-to-br from-[#10b981] to-[#059669] rounded-2xl p-5 text-white">
