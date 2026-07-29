@@ -56,7 +56,11 @@ export default function Dashboard() {
       setLoading(true);
       try {
         const [s, p, w] = await Promise.all([
-          supabase.from("sales").select("*").eq("is_deleted", 0),
+          // Ordenar por fecha desc: Supabase limita a 1000 filas por consulta,
+          // así traemos las ventas MÁS RECIENTES (incluye las de hoy) en vez de
+          // las más viejas. Sin esto, con +1000 ventas históricas el día actual
+          // quedaba afuera. (Mismo criterio que el Historial.)
+          supabase.from("sales").select("*").eq("is_deleted", 0).order("created_at", { ascending: false }),
           supabase.from("products").select("*").eq("is_deleted", 0),
           supabase.from("weighted_products").select("*").eq("is_deleted", 0),
         ]);
