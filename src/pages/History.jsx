@@ -57,8 +57,24 @@ export default function History() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("sales").select("*").eq("is_deleted", 0).order("created_at", { ascending: false });
-      setSales(data || []);
+      // Supabase limita a 1000 filas por consulta. Traemos TODAS las ventas
+      // en tandas de 1000 (paginando) para no perder los días más viejos.
+      const PAGE = 1000;
+      const MAX_PAGES = 50; // tope de seguridad (~50k ventas)
+      let all = [];
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * PAGE;
+        const { data, error } = await supabase
+          .from("sales")
+          .select("*")
+          .eq("is_deleted", 0)
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        all = all.concat(data);
+        if (data.length < PAGE) break; // última tanda
+      }
+      setSales(all);
       setLoading(false);
     })();
   }, []);

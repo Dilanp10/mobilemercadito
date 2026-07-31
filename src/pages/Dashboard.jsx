@@ -55,16 +55,29 @@ export default function Dashboard() {
     (async () => {
       setLoading(true);
       try {
-        const [s, p, w] = await Promise.all([
-          // Ordenar por fecha desc: Supabase limita a 1000 filas por consulta,
-          // así traemos las ventas MÁS RECIENTES (incluye las de hoy) en vez de
-          // las más viejas. Sin esto, con +1000 ventas históricas el día actual
-          // quedaba afuera. (Mismo criterio que el Historial.)
-          supabase.from("sales").select("*").eq("is_deleted", 0).order("created_at", { ascending: false }),
+        // Ventas: Supabase limita a 1000 filas por consulta, así que paginamos
+        // (en tandas de 1000, más recientes primero) para traerlas TODAS. Sin
+        // esto, con +1000 ventas históricas se perdían días enteros.
+        const PAGE = 1000;
+        const MAX_PAGES = 50; // tope de seguridad (~50k ventas)
+        let allSales = [];
+        for (let page = 0; page < MAX_PAGES; page++) {
+          const from = page * PAGE;
+          const { data, error } = await supabase
+            .from("sales")
+            .select("*")
+            .eq("is_deleted", 0)
+            .order("created_at", { ascending: false })
+            .range(from, from + PAGE - 1);
+          if (error || !data || data.length === 0) break;
+          allSales = allSales.concat(data);
+          if (data.length < PAGE) break; // última tanda
+        }
+        const [p, w] = await Promise.all([
           supabase.from("products").select("*").eq("is_deleted", 0),
           supabase.from("weighted_products").select("*").eq("is_deleted", 0),
         ]);
-        setSales(s.data || []);
+        setSales(allSales);
         setProducts(p.data || []);
         setWeighted(w.data || []);
       } catch {
