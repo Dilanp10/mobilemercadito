@@ -66,13 +66,13 @@ export default function Chat() {
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 130px)" }}>
       {/* Encabezado del asistente */}
-      <div className="bg-white rounded-2xl p-3 border border-[#e2e8f0] flex items-center gap-3 mb-3">
-        <div className="w-11 h-11 rounded-full bg-[#0040a1] flex items-center justify-center">
+      <div className="bg-surface rounded-2xl p-3 border border-line flex items-center gap-3 mb-3">
+        <div className="w-11 h-11 rounded-full bg-brand-solid flex items-center justify-center">
           <span className="material-symbols-outlined text-white">smart_toy</span>
         </div>
         <div>
-          <p className="font-bold text-[#1e293b] leading-tight">Beto — Asistente</p>
-          <p className="text-xs text-[#64748b]">Consulta y modifica productos</p>
+          <p className="font-bold text-fg leading-tight">Beto — Asistente</p>
+          <p className="text-xs text-muted">Consulta y modifica productos</p>
         </div>
       </div>
 
@@ -83,7 +83,7 @@ export default function Chat() {
         ))}
         {sending && <Bubble role="assistant" text="…" typing />}
         {error && (
-          <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] text-sm p-3 rounded-xl">
+          <div className="bg-danger/10 border border-danger/30 text-danger text-sm p-3 rounded-xl">
             {error}
           </div>
         )}
@@ -92,13 +92,13 @@ export default function Chat() {
       {/* Sugerencias (solo al inicio) */}
       {messages.length === 1 && !sending && (
         <div className="mb-2 -mx-1 pb-1">
-          <p className="text-xs text-[#64748b] px-1 mb-1">Probá con:</p>
+          <p className="text-xs text-muted px-1 mb-1">Probá con:</p>
           <div className="flex gap-2 overflow-x-auto pb-1 px-1">
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
                 onClick={() => send(s)}
-                className="whitespace-nowrap bg-white border border-[#e2e8f0] text-[#0040a1] text-xs font-semibold px-3 py-2 rounded-full active:bg-[#f1f5f9]"
+                className="whitespace-nowrap bg-surface border border-line text-brand text-xs font-semibold px-3 py-2 rounded-full active:bg-surface-mute"
               >
                 {s}
               </button>
@@ -110,7 +110,7 @@ export default function Chat() {
       {/* Input */}
       <form
         onSubmit={(e) => { e.preventDefault(); send(); }}
-        className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-[#e2e8f0]"
+        className="flex items-center gap-2 bg-surface p-2 rounded-2xl border border-line"
       >
         <input
           type="text"
@@ -123,7 +123,7 @@ export default function Chat() {
         <button
           type="submit"
           disabled={sending || !input.trim()}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#0040a1] text-white disabled:bg-[#94a3b8] active:scale-95 transition-transform"
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-brand-solid text-white disabled:bg-subtle active:scale-95 transition-transform"
         >
           <span className="material-symbols-outlined text-[20px]">
             {sending ? "hourglass" : "send"}
@@ -139,15 +139,15 @@ function Bubble({ role, text, typing }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-[#0040a1] flex items-center justify-center mr-2 shrink-0">
+        <div className="w-8 h-8 rounded-full bg-brand-solid flex items-center justify-center mr-2 shrink-0">
           <span className="material-symbols-outlined text-white text-[18px]">smart_toy</span>
         </div>
       )}
       <div
         className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
           isUser
-            ? "bg-[#0040a1] text-white rounded-br-sm"
-            : "bg-white border border-[#e2e8f0] text-[#1e293b] rounded-bl-sm"
+            ? "bg-brand-solid text-white rounded-br-sm"
+            : "bg-surface border border-line text-fg rounded-bl-sm"
         }`}
       >
         {typing ? (
@@ -167,7 +167,7 @@ function Bubble({ role, text, typing }) {
 function Dot({ delay }) {
   return (
     <span
-      className="inline-block w-1.5 h-1.5 rounded-full bg-[#94a3b8] animate-bounce"
+      className="inline-block w-1.5 h-1.5 rounded-full bg-subtle animate-bounce"
       style={{ animationDelay: `${delay}s` }}
     />
   );

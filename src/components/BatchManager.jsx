@@ -73,72 +73,72 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
   const today = nowLocalAR().slice(0, 10);
 
   return (
-    <div className="bg-[#f8f9fb] rounded-xl p-3 border border-[#e2e8f0]">
+    <div className="bg-surface-soft rounded-xl p-3 border border-line">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-bold text-[#1e293b]">Fardos / tandas ({batches.length})</span>
+        <span className="text-sm font-bold text-fg">Fardos / tandas ({batches.length})</span>
         {!adding && (
-          <button onClick={() => setAdding(true)} className="text-xs bg-[#10b981] text-white px-3 py-1.5 rounded-lg font-semibold">+ Sumar fardo</button>
+          <button onClick={() => setAdding(true)} className="text-xs bg-success-solid text-white px-3 py-1.5 rounded-lg font-semibold">+ Sumar fardo</button>
         )}
       </div>
 
       {adding && (
-        <div className="bg-white rounded-lg p-3 mb-2 border border-[#e2e8f0] space-y-2">
+        <div className="bg-surface rounded-lg p-3 mb-2 border border-line space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] text-[#64748b] mb-1">Cantidad ({unit})</label>
+              <label className="block text-[10px] text-muted mb-1">Cantidad ({unit})</label>
               <input type="number" inputMode="decimal" step={step} value={addForm.quantity}
                 onChange={(e) => setAddForm({ ...addForm, quantity: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#0040a1] rounded-lg text-sm" autoFocus />
+                className="w-full px-2 py-1.5 border border-brand rounded-lg text-sm" autoFocus />
             </div>
             <div>
-              <label className="block text-[10px] text-[#64748b] mb-1">Vencimiento</label>
+              <label className="block text-[10px] text-muted mb-1">Vencimiento</label>
               <input type="date" value={addForm.expiry_date}
                 onChange={(e) => setAddForm({ ...addForm, expiry_date: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#0040a1] rounded-lg text-sm" />
+                className="w-full px-2 py-1.5 border border-brand rounded-lg text-sm" />
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={addFardo} className="flex-1 py-2 bg-[#10b981] text-white rounded-lg text-sm font-semibold">Agregar</button>
-            <button onClick={() => setAdding(false)} className="px-4 py-2 bg-[#e2e8f0] rounded-lg text-sm">Cancelar</button>
+            <button onClick={addFardo} className="flex-1 py-2 bg-success-solid text-white rounded-lg text-sm font-semibold">Agregar</button>
+            <button onClick={() => setAdding(false)} className="px-4 py-2 bg-line rounded-lg text-sm">Cancelar</button>
           </div>
         </div>
       )}
 
       {loading ? (
-        <p className="text-xs text-[#94a3b8] py-2">Cargando...</p>
+        <p className="text-xs text-subtle py-2">Cargando...</p>
       ) : batches.length === 0 ? (
-        <p className="text-xs text-[#94a3b8] py-2">Sin fardos cargados.</p>
+        <p className="text-xs text-subtle py-2">Sin fardos cargados.</p>
       ) : (
         <div className="space-y-1.5">
           {batches.map((b, i) => {
             const expired = b.expiry_date && b.expiry_date < today;
             return (
-              <div key={b.uuid} className="bg-white border border-[#e2e8f0] rounded-lg p-2">
+              <div key={b.uuid} className="bg-surface border border-line rounded-lg p-2">
                 {editId === b.uuid ? (
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[10px] text-[#64748b] mb-1">Cantidad ({unit})</label>
+                        <label className="block text-[10px] text-muted mb-1">Cantidad ({unit})</label>
                         <input type="number" inputMode="decimal" step={step} value={editForm.quantity}
                           onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                          className="w-full px-2 py-1.5 border border-[#0040a1] rounded-lg text-sm bg-white" />
+                          className="w-full px-2 py-1.5 border border-brand rounded-lg text-sm bg-surface" />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-[#64748b] mb-1">Vencimiento</label>
+                        <label className="block text-[10px] text-muted mb-1">Vencimiento</label>
                         {/* min-height: el input date vacío colapsa/queda invisible en algunos celulares */}
                         <input type="date" value={editForm.expiry_date}
                           onChange={(e) => setEditForm({ ...editForm, expiry_date: e.target.value })}
-                          className="w-full px-2 py-1.5 border border-[#0040a1] rounded-lg text-sm bg-white"
+                          className="w-full px-2 py-1.5 border border-brand rounded-lg text-sm bg-surface"
                           style={{ minHeight: 36 }} />
                       </div>
                     </div>
                     {editForm.expiry_date && (
                       <button onClick={() => setEditForm({ ...editForm, expiry_date: "" })}
-                        className="text-[11px] text-[#64748b] underline">Quitar vencimiento</button>
+                        className="text-[11px] text-muted underline">Quitar vencimiento</button>
                     )}
                     <div className="flex gap-2">
-                      <button onClick={() => saveEdit(b)} className="flex-1 py-1.5 bg-[#10b981] text-white rounded text-xs font-semibold">OK</button>
-                      <button onClick={() => setEditId(null)} className="px-3 py-1.5 bg-[#e2e8f0] rounded text-xs">✕</button>
+                      <button onClick={() => saveEdit(b)} className="flex-1 py-1.5 bg-success-solid text-white rounded text-xs font-semibold">OK</button>
+                      <button onClick={() => setEditId(null)} className="px-3 py-1.5 bg-line rounded text-xs">✕</button>
                     </div>
                   </div>
                 ) : (
@@ -148,16 +148,16 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
                       onClick={() => { setEditId(b.uuid); setEditForm({ quantity: String(b.quantity), expiry_date: b.expiry_date ? b.expiry_date.slice(0, 10) : "" }); }}
                       className="flex-1 text-left text-sm"
                     >
-                      <span className="font-mono text-[10px] text-[#94a3b8] mr-2">#{i + 1}</span>
-                      <b className="text-[#1e293b]">{formatNum(b.quantity, b.quantity % 1 === 0 ? 0 : 2)} {unit}</b>
-                      <span className={`ml-2 text-xs ${expired ? "text-[#ef4444] font-semibold" : "text-[#64748b]"}`}>
+                      <span className="font-mono text-[10px] text-subtle mr-2">#{i + 1}</span>
+                      <b className="text-fg">{formatNum(b.quantity, b.quantity % 1 === 0 ? 0 : 2)} {unit}</b>
+                      <span className={`ml-2 text-xs ${expired ? "text-danger font-semibold" : "text-muted"}`}>
                         {b.expiry_date ? `vence ${b.expiry_date}${expired ? " ⚠️" : ""}` : "sin venc. — tocá para agregar"}
                       </span>
                     </button>
                     <div className="flex gap-1">
                       <button onClick={() => { setEditId(b.uuid); setEditForm({ quantity: String(b.quantity), expiry_date: b.expiry_date ? b.expiry_date.slice(0, 10) : "" }); }}
-                        className="p-1"><span className="material-symbols-outlined text-[18px] text-[#0040a1]">edit</span></button>
-                      <button onClick={() => removeBatch(b)} className="p-1"><span className="material-symbols-outlined text-[18px] text-[#ef4444]">delete</span></button>
+                        className="p-1"><span className="material-symbols-outlined text-[18px] text-brand">edit</span></button>
+                      <button onClick={() => removeBatch(b)} className="p-1"><span className="material-symbols-outlined text-[18px] text-danger">delete</span></button>
                     </div>
                   </div>
                 )}

@@ -57,18 +57,18 @@ export default function Accounts() {
       <SearchBar value={search} onChange={setSearch} count={filtered.length} />
 
       {loading ? <Loader /> : filtered.length === 0 ? (
-        <p className="text-center text-[#94a3b8] py-10">No hay cuentas</p>
+        <p className="text-center text-subtle py-10">No hay cuentas</p>
       ) : filtered.map((a) => (
-        <div key={a.uuid} className="bg-white rounded-2xl p-4 border border-[#e2e8f0] flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-[#0040a1]/10 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[#0040a1]">person</span>
+        <div key={a.uuid} className="bg-surface rounded-2xl p-4 border border-line flex items-center gap-3">
+          <div className="w-11 h-11 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-brand">person</span>
           </div>
           <button className="flex-1 text-left" onClick={() => setDetail(a)}>
-            <p className="font-bold text-[#1e293b]">{a.name} {a.last_name}</p>
-            <p className="text-xs text-[#64748b]">{a.phone || a.gmail || "Sin datos"}</p>
+            <p className="font-bold text-fg">{a.name} {a.last_name}</p>
+            <p className="text-xs text-muted">{a.phone || a.gmail || "Sin datos"}</p>
           </button>
-          <IconBtn icon="chevron_right" color="#94a3b8" onClick={() => setDetail(a)} />
-          <IconBtn icon="delete" color="#ef4444" onClick={() => doDelete(a)} />
+          <IconBtn icon="chevron_right" color="var(--color-subtle)" onClick={() => setDetail(a)} />
+          <IconBtn icon="delete" color="var(--color-danger)" onClick={() => doDelete(a)} />
         </div>
       ))}
 
@@ -80,7 +80,7 @@ export default function Accounts() {
           <Field label="Apellido *" value={addForm.last_name} onChange={(v) => setAddForm({ ...addForm, last_name: v })} text />
           <Field label="Teléfono" value={addForm.phone} onChange={(v) => setAddForm({ ...addForm, phone: v })} text />
           <Field label="Email" value={addForm.gmail} onChange={(v) => setAddForm({ ...addForm, gmail: v })} text />
-          <button onClick={addAccount} className="w-full py-3 bg-[#0040a1] text-white rounded-xl font-bold">Crear cuenta</button>
+          <button onClick={addAccount} className="w-full py-3 bg-brand-solid text-white rounded-xl font-bold">Crear cuenta</button>
         </Modal>
       )}
 
@@ -119,25 +119,25 @@ function AccountDetail({ account, onClose }) {
 
   return (
     <Modal title={`${account.name} ${account.last_name}`} onClose={onClose}>
-      <div className="bg-[#0040a1]/5 rounded-xl p-3 flex items-center justify-between">
-        <span className="text-sm text-[#64748b]">Total gastado (últ. 3 meses)</span>
-        <span className="text-xl font-extrabold text-[#0040a1]">{formatMoney(total)}</span>
+      <div className="bg-brand/5 rounded-xl p-3 flex items-center justify-between">
+        <span className="text-sm text-muted">Total gastado (últ. 3 meses)</span>
+        <span className="text-xl font-extrabold text-brand">{formatMoney(total)}</span>
       </div>
       {loading ? <Loader /> : groups.length === 0 ? (
-        <p className="text-center text-[#94a3b8] py-6">Sin movimientos en la nube</p>
+        <p className="text-center text-subtle py-6">Sin movimientos en la nube</p>
       ) : (
         <div className="space-y-2">
           {groups.map((g, i) => (
-            <div key={i} className="border border-[#e2e8f0] rounded-xl p-3">
-              <p className="text-xs text-[#94a3b8] mb-1">{(g.fecha || "").slice(0, 16)}</p>
+            <div key={i} className="border border-line rounded-xl p-3">
+              <p className="text-xs text-subtle mb-1">{(g.fecha || "").slice(0, 16)}</p>
               {g.items.map((it) => (
                 <div key={it.uuid} className="flex justify-between text-sm py-0.5">
-                  <span className="text-[#1e293b]">
+                  <span className="text-fg">
                     {it.product_type === "account_close" ? "🔒 Cierre" : it.product_name}
                     {it.product_type !== "account_close" && it.product_type !== "custom" &&
-                      <span className="text-[#94a3b8]"> ×{formatNum(it.quantity, it.quantity % 1 === 0 ? 0 : 2)}</span>}
+                      <span className="text-subtle"> ×{formatNum(it.quantity, it.quantity % 1 === 0 ? 0 : 2)}</span>}
                   </span>
-                  <b className="text-[#1e293b]">{formatMoney(it.total_price)}</b>
+                  <b className="text-fg">{formatMoney(it.total_price)}</b>
                 </div>
               ))}
             </div>

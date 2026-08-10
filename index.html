@@ -7,6 +7,20 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SuperBeto" />
+    <script>
+      // Aplica el tema antes del primer pintado para que no haya flash blanco.
+      // Debe quedar en sync con src/theme.js.
+      (function () {
+        try {
+          var saved = localStorage.getItem("sb-theme");
+          var dark = saved === "dark" ||
+            (saved !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", dark ? "#16357a" : "#0040a1");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>SuperBeto · Control</title>

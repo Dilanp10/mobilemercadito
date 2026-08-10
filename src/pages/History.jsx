@@ -129,17 +129,17 @@ export default function History() {
       <div className="relative">
         <button
           onClick={() => setPeriodOpen((o) => !o)}
-          className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-white border border-[#e2e8f0] rounded-xl"
+          className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-surface border border-line rounded-xl"
         >
           <span className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px] text-[#0040a1]">
+            <span className="material-symbols-outlined text-[20px] text-brand">
               {PERIODS.find((p) => p.key === period)?.icon || "filter_list"}
             </span>
-            <span className="text-sm font-semibold text-[#1e293b]">
+            <span className="text-sm font-semibold text-fg">
               {PERIODS.find((p) => p.key === period)?.label}
             </span>
           </span>
-          <span className={`material-symbols-outlined text-[#64748b] transition-transform ${periodOpen ? "rotate-180" : ""}`}>
+          <span className={`material-symbols-outlined text-muted transition-transform ${periodOpen ? "rotate-180" : ""}`}>
             expand_more
           </span>
         </button>
@@ -147,7 +147,7 @@ export default function History() {
         {periodOpen && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setPeriodOpen(false)} />
-            <div className="absolute left-0 right-0 mt-1 z-40 bg-white border border-[#e2e8f0] rounded-xl shadow-lg overflow-hidden">
+            <div className="absolute left-0 right-0 mt-1 z-40 bg-surface border border-line rounded-xl shadow-lg overflow-hidden">
               {PERIODS.map((p) => (
                 <button
                   key={p.key}
@@ -158,16 +158,16 @@ export default function History() {
                     if (p.key === "dia") setSelectedDay(startOfDay(new Date()));
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left ${
-                    period === p.key ? "bg-[#0040a1]/5" : "active:bg-[#f8f9fb]"
+                    period === p.key ? "bg-brand/5" : "active:bg-surface-soft"
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[20px]" style={{ color: period === p.key ? "#0040a1" : "#94a3b8" }}>
+                  <span className="material-symbols-outlined text-[20px]" style={{ color: period === p.key ? "var(--color-brand)" : "var(--color-subtle)" }}>
                     {p.icon}
                   </span>
-                  <span className={`text-sm flex-1 ${period === p.key ? "font-bold text-[#0040a1]" : "text-[#1e293b]"}`}>
+                  <span className={`text-sm flex-1 ${period === p.key ? "font-bold text-brand" : "text-fg"}`}>
                     {p.label}
                   </span>
-                  {period === p.key && <span className="material-symbols-outlined text-[20px] text-[#0040a1]">check</span>}
+                  {period === p.key && <span className="material-symbols-outlined text-[20px] text-brand">check</span>}
                 </button>
               ))}
             </div>
@@ -177,22 +177,22 @@ export default function History() {
 
       {/* Selector de día (solo cuando el período es "Hoy") */}
       {period === "dia" && (
-        <div className="bg-white rounded-xl p-3 border border-[#e2e8f0]">
-          <p className="text-xs text-[#64748b] mb-2">Elegí el día que querés ver</p>
+        <div className="bg-surface rounded-xl p-3 border border-line">
+          <p className="text-xs text-muted mb-2">Elegí el día que querés ver</p>
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {dayOptions.map((d, i) => {
               const activo = startOfDay(d).getTime() === startOfDay(selectedDay).getTime();
               return (
                 <button key={d.toISOString()} onClick={() => setSelectedDay(d)}
                   className={`flex-shrink-0 min-w-[64px] rounded-xl py-2 px-2 flex flex-col items-center transition-all border ${
-                    activo ? "bg-[#0040a1] text-white border-[#0040a1]" : "bg-[#f8fafc] text-[#64748b] border-[#e2e8f0]"}`}>
+                    activo ? "bg-brand-solid text-white border-brand" : "bg-surface-soft text-muted border-line"}`}>
                   <span className="text-[11px] font-semibold capitalize leading-tight">{dayChipLabel(d, i)}</span>
-                  <span className={`text-lg font-extrabold leading-tight ${activo ? "text-white" : "text-[#1e293b]"}`}>{d.getDate()}</span>
+                  <span className={`text-lg font-extrabold leading-tight ${activo ? "text-white" : "text-fg"}`}>{d.getDate()}</span>
                 </button>
               );
             })}
           </div>
-          <p className="text-[13px] font-semibold text-[#0040a1] mt-2">📅 {dayFullLabel(selectedDay)}</p>
+          <p className="text-[13px] font-semibold text-brand mt-2">📅 {dayFullLabel(selectedDay)}</p>
         </div>
       )}
 
@@ -201,7 +201,7 @@ export default function History() {
         {FILTERS.map((f) => (
           <button key={f.key} onClick={() => setFilter(f.key)}
             className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap ${
-              filter === f.key ? "bg-[#0040a1] text-white" : "bg-white text-[#64748b] border border-[#e2e8f0]"
+              filter === f.key ? "bg-brand-solid text-white" : "bg-surface text-muted border border-line"
             }`}>
             {f.label}
           </button>
@@ -209,41 +209,41 @@ export default function History() {
       </div>
 
       {/* Total */}
-      <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0] flex items-center justify-between">
+      <div className="bg-surface rounded-2xl p-4 border border-line flex items-center justify-between">
         <div>
-          <p className="text-xs text-[#64748b]">Recaudado ({period === "dia" ? dayFullLabel(selectedDay) : PERIODS.find((p) => p.key === period)?.label})</p>
-          <p className="text-2xl font-extrabold text-[#10b981]">{formatMoney(totalPeriodo)}</p>
+          <p className="text-xs text-muted">Recaudado ({period === "dia" ? dayFullLabel(selectedDay) : PERIODS.find((p) => p.key === period)?.label})</p>
+          <p className="text-2xl font-extrabold text-success">{formatMoney(totalPeriodo)}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-[#64748b]">Ventas</p>
-          <p className="text-2xl font-extrabold text-[#0040a1]">{groups.length}</p>
+          <p className="text-xs text-muted">Ventas</p>
+          <p className="text-2xl font-extrabold text-brand">{groups.length}</p>
         </div>
       </div>
 
       {loading ? <Loader /> : groups.length === 0 ? (
-        <p className="text-center text-[#94a3b8] py-10">Sin ventas registradas</p>
+        <p className="text-center text-subtle py-10">Sin ventas registradas</p>
       ) : (
         groups.map((g) => (
-          <div key={g.id} className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
+          <div key={g.id} className="bg-surface rounded-2xl p-4 border border-line">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-[#94a3b8]">{(g.fecha || "").slice(0, 16)}</span>
+              <span className="text-xs text-subtle">{(g.fecha || "").slice(0, 16)}</span>
               <span className="flex items-center gap-2">
-                {g.account && <span className="text-[10px] bg-[#f59e0b]/10 text-[#f59e0b] px-2 py-0.5 rounded-full font-semibold">Cuenta</span>}
-                <span className="text-[10px] bg-[#0040a1]/10 text-[#0040a1] px-2 py-0.5 rounded-full font-semibold capitalize">{g.metodo}</span>
+                {g.account && <span className="text-[10px] bg-warn/10 text-warn px-2 py-0.5 rounded-full font-semibold">Cuenta</span>}
+                <span className="text-[10px] bg-brand/10 text-brand px-2 py-0.5 rounded-full font-semibold capitalize">{g.metodo}</span>
               </span>
             </div>
             {g.items.map((it) => (
               <div key={it.uuid} className="flex justify-between text-sm py-0.5">
-                <span className="text-[#1e293b]">
+                <span className="text-fg">
                   {it.product_name}
-                  <span className="text-[#94a3b8]"> ×{formatNum(it.quantity, it.quantity % 1 === 0 ? 0 : 2)}</span>
+                  <span className="text-subtle"> ×{formatNum(it.quantity, it.quantity % 1 === 0 ? 0 : 2)}</span>
                 </span>
-                <span className="text-[#64748b]">{formatMoney(it.total_price)}</span>
+                <span className="text-muted">{formatMoney(it.total_price)}</span>
               </div>
             ))}
-            <div className="flex justify-between mt-2 pt-2 border-t border-[#f1f5f9]">
-              <span className="font-bold text-[#1e293b]">Total</span>
-              <span className="font-extrabold text-[#10b981]">{formatMoney(g.total)}</span>
+            <div className="flex justify-between mt-2 pt-2 border-t border-surface-mute">
+              <span className="font-bold text-fg">Total</span>
+              <span className="font-extrabold text-success">{formatMoney(g.total)}</span>
             </div>
           </div>
         ))

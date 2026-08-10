@@ -181,20 +181,20 @@ export default function Dashboard() {
   }, [products, weighted]);
 
   if (loading) {
-    return <div className="flex justify-center py-20 text-[#64748b]"><span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span></div>;
+    return <div className="flex justify-center py-20 text-muted"><span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span></div>;
   }
 
   return (
     <div className="space-y-4">
       {/* Selector de período */}
-      <div className="flex gap-1 bg-white rounded-xl p-1 border border-[#e2e8f0]">
+      <div className="flex gap-1 bg-surface rounded-xl p-1 border border-line">
         {PERIODS.map((p) => (
           <button key={p.key} onClick={() => {
               setPeriod(p.key);
               // Al volver a tocar "Hoy" arrancamos siempre mostrando el día de hoy
               if (p.key === "hoy") setSelectedDay(startOfDay(new Date()));
             }}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${period === p.key ? "bg-[#0040a1] text-white" : "text-[#64748b]"}`}>
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${period === p.key ? "bg-brand-solid text-white" : "text-muted"}`}>
             {p.label}
           </button>
         ))}
@@ -202,27 +202,27 @@ export default function Dashboard() {
 
       {/* Selector de día (solo cuando el período es "Hoy") */}
       {period === "hoy" && (
-        <div className="bg-white rounded-xl p-3 border border-[#e2e8f0]">
-          <p className="text-xs text-[#64748b] mb-2">Elegí el día que querés ver</p>
+        <div className="bg-surface rounded-xl p-3 border border-line">
+          <p className="text-xs text-muted mb-2">Elegí el día que querés ver</p>
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {dayOptions.map((d, i) => {
               const activo = startOfDay(d).getTime() === startOfDay(selectedDay).getTime();
               return (
                 <button key={d.toISOString()} onClick={() => setSelectedDay(d)}
                   className={`flex-shrink-0 min-w-[64px] rounded-xl py-2 px-2 flex flex-col items-center transition-all border ${
-                    activo ? "bg-[#0040a1] text-white border-[#0040a1]" : "bg-[#f8fafc] text-[#64748b] border-[#e2e8f0]"}`}>
+                    activo ? "bg-brand-solid text-white border-brand" : "bg-surface-soft text-muted border-line"}`}>
                   <span className="text-[11px] font-semibold capitalize leading-tight">{dayChipLabel(d, i)}</span>
-                  <span className={`text-lg font-extrabold leading-tight ${activo ? "text-white" : "text-[#1e293b]"}`}>{d.getDate()}</span>
+                  <span className={`text-lg font-extrabold leading-tight ${activo ? "text-white" : "text-fg"}`}>{d.getDate()}</span>
                 </button>
               );
             })}
           </div>
-          <p className="text-[13px] font-semibold text-[#0040a1] mt-2">📅 {dayFullLabel(selectedDay)}</p>
+          <p className="text-[13px] font-semibold text-brand mt-2">📅 {dayFullLabel(selectedDay)}</p>
         </div>
       )}
 
       {/* Ganancia combinada destacada */}
-      <div className="bg-gradient-to-br from-[#10b981] to-[#059669] rounded-2xl p-5 text-white">
+      <div className="bg-gradient-to-br from-success to-success-deep rounded-2xl p-5 text-white">
         <p className="text-sm text-white/80">Ganancia total del período</p>
         <p className="text-4xl font-extrabold mt-1">{formatMoney(total.ganancia)}</p>
         <div className="flex items-center gap-3 mt-2 text-sm text-white/90">
@@ -233,15 +233,15 @@ export default function Dashboard() {
       </div>
 
       {/* BLOQUE: Ventas en caja */}
-      <SectionHeader icon="point_of_sale" title="Ventas en caja" subtitle="Vendido directo desde caja" color="#0040a1" />
+      <SectionHeader icon="point_of_sale" title="Ventas en caja" subtitle="Vendido directo desde caja" color="var(--color-brand)" />
       <KpiGrid k={caja} />
 
       {/* BLOQUE: Ventas en cuentas */}
-      <SectionHeader icon="account_circle" title="Ventas en cuentas" subtitle="Fiado y cierres de clientes" color="#f59e0b" />
+      <SectionHeader icon="account_circle" title="Ventas en cuentas" subtitle="Fiado y cierres de clientes" color="var(--color-warn)" />
       <KpiGrid k={cuentas} />
 
       {/* BLOQUE: Totales combinados */}
-      <SectionHeader icon="summarize" title="Totales combinados" subtitle="Caja + cuentas" color="#10b981" />
+      <SectionHeader icon="summarize" title="Totales combinados" subtitle="Caja + cuentas" color="var(--color-success)" />
       <KpiGrid k={total} />
 
       {/* Resumen del período */}
@@ -249,15 +249,15 @@ export default function Dashboard() {
         <Row label="Ventas (caja)" value={formatMoney(caja.total)} />
         <Row label="Ventas (cuentas)" value={formatMoney(cuentas.total)} />
         <Row label="Ventas totales" value={formatMoney(total.total)} green />
-        <Row label="Costos" value={`- ${formatMoney(total.costo)}`} accent="#ef4444" />
+        <Row label="Costos" value={`- ${formatMoney(total.costo)}`} accent="var(--color-danger)" />
         <Row label="Ganancia neta" value={formatMoney(total.ganancia)} bold />
         <div className="mt-3">
-          <div className="flex justify-between text-xs text-[#64748b]">
+          <div className="flex justify-between text-xs text-muted">
             <span>Margen combinado</span>
             <span>{formatNum(total.margen, 1)}%</span>
           </div>
-          <div className="w-full bg-[#e2e8f0] h-2 rounded-full mt-1">
-            <div className="bg-[#0040a1] h-2 rounded-full transition-all"
+          <div className="w-full bg-line h-2 rounded-full mt-1">
+            <div className="bg-brand-solid h-2 rounded-full transition-all"
               style={{ width: `${Math.min(Math.max(total.margen, 0), 100)}%` }} />
           </div>
         </div>
@@ -269,7 +269,7 @@ export default function Dashboard() {
         <Row label="Stock en kg" value={`${formatNum(inventario.stockKg)} kg`} />
         <Row label="Valor (al costo)" value={formatMoney(inventario.valor)} />
         <Row label="Valor (al precio de venta)" value={formatMoney(inventario.valorVenta)} green />
-        <Row label="Ganancia potencial" value={formatMoney(inventario.valorVenta - inventario.valor)} accent="#0040a1" />
+        <Row label="Ganancia potencial" value={formatMoney(inventario.valorVenta - inventario.valor)} accent="var(--color-brand)" />
         <Row label="Productos activos" value={products.length + weighted.length} />
       </Section>
 
@@ -277,13 +277,13 @@ export default function Dashboard() {
       <Section title="Más vendidos" icon="trending_up">
         {topProductos.length === 0 ? <Empty text="Sin ventas en este período" /> :
           topProductos.map((p, i) => (
-            <div key={`${p.name}-${p.type}`} className="flex items-center gap-3 py-2 border-b border-[#f1f5f9] last:border-0">
-              <span className="w-6 h-6 rounded-full bg-[#0040a1]/10 text-[#0040a1] text-xs font-bold flex items-center justify-center">{i + 1}</span>
-              <span className="flex-1 text-[#1e293b] text-sm">
+            <div key={`${p.name}-${p.type}`} className="flex items-center gap-3 py-2 border-b border-surface-mute last:border-0">
+              <span className="w-6 h-6 rounded-full bg-brand/10 text-brand text-xs font-bold flex items-center justify-center">{i + 1}</span>
+              <span className="flex-1 text-fg text-sm">
                 {p.name}
-                {p.type === "peso" && <span className="ml-1 text-xs text-[#64748b]">(por peso)</span>}
+                {p.type === "peso" && <span className="ml-1 text-xs text-muted">(por peso)</span>}
               </span>
-              <span className="font-bold text-[#0040a1] text-sm">
+              <span className="font-bold text-brand text-sm">
                 {p.type === "peso" ? `${formatNum(p.qty)} kg` : `${Number(p.qty)} u`}
               </span>
             </div>
@@ -291,12 +291,12 @@ export default function Dashboard() {
       </Section>
 
       {/* Stock bajo */}
-      <Section title="Stock bajo" icon="warning" accent="#ef4444">
+      <Section title="Stock bajo" icon="warning" accent="var(--color-danger)">
         {inventario.low.length === 0 ? <Empty text="Todo con stock suficiente 👍" /> :
           inventario.low.map((x) => (
-            <div key={x.name} className="flex items-center justify-between py-2 border-b border-[#f1f5f9] last:border-0">
-              <span className="text-[#1e293b] text-sm">{x.name}</span>
-              <span className="text-[#ef4444] font-bold text-sm">{x.qty}</span>
+            <div key={x.name} className="flex items-center justify-between py-2 border-b border-surface-mute last:border-0">
+              <span className="text-fg text-sm">{x.name}</span>
+              <span className="text-danger font-bold text-sm">{x.qty}</span>
             </div>
           ))}
       </Section>
@@ -308,46 +308,46 @@ export default function Dashboard() {
 function KpiGrid({ k }) {
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Card title="Vendido" value={formatMoney(k.total)} icon="payments" color="#10b981" />
-      <Card title="Ganancia" value={formatMoney(k.ganancia)} icon="trending_up" color="#10b981" highlight />
-      <Card title="Ventas" value={k.ventas} icon="receipt_long" color="#0040a1" />
-      <Card title="Ticket prom." value={formatMoney(k.ticket)} icon="confirmation_number" color="#f59e0b" />
-      <Card title="Unidades" value={formatNum(k.unidades, 0)} icon="inventory_2" color="#64748b" />
-      <Card title="Kg vendidos" value={formatNum(k.kg)} icon="scale" color="#64748b" />
-      <Card title="Costos" value={formatMoney(k.costo)} icon="trending_down" color="#ef4444" />
-      <Card title="Margen" value={`${formatNum(k.margen, 1)}%`} icon="percent" color="#0040a1" />
+      <Card title="Vendido" value={formatMoney(k.total)} icon="payments" color="var(--color-success)" />
+      <Card title="Ganancia" value={formatMoney(k.ganancia)} icon="trending_up" color="var(--color-success)" highlight />
+      <Card title="Ventas" value={k.ventas} icon="receipt_long" color="var(--color-brand)" />
+      <Card title="Ticket prom." value={formatMoney(k.ticket)} icon="confirmation_number" color="var(--color-warn)" />
+      <Card title="Unidades" value={formatNum(k.unidades, 0)} icon="inventory_2" color="var(--color-muted)" />
+      <Card title="Kg vendidos" value={formatNum(k.kg)} icon="scale" color="var(--color-muted)" />
+      <Card title="Costos" value={formatMoney(k.costo)} icon="trending_down" color="var(--color-danger)" />
+      <Card title="Margen" value={`${formatNum(k.margen, 1)}%`} icon="percent" color="var(--color-brand)" />
     </div>
   );
 }
 
 function Card({ title, value, icon, color, highlight }) {
   return (
-    <div className={`bg-white rounded-2xl p-4 border ${highlight ? "border-[#10b981]/40" : "border-[#e2e8f0]"}`}>
+    <div className={`bg-surface rounded-2xl p-4 border ${highlight ? "border-success/40" : "border-line"}`}>
       <div className="flex items-center gap-2 mb-1">
         <span className="material-symbols-outlined text-[18px]" style={{ color }}>{icon}</span>
-        <span className="text-xs text-[#64748b]">{title}</span>
+        <span className="text-xs text-muted">{title}</span>
       </div>
-      <p className={`font-extrabold text-xl ${highlight ? "text-[#10b981]" : "text-[#1e293b]"}`}>{value}</p>
+      <p className={`font-extrabold text-xl ${highlight ? "text-success" : "text-fg"}`}>{value}</p>
     </div>
   );
 }
 function SectionHeader({ icon, title, subtitle, color }) {
   return (
     <div className="flex items-center gap-3 pt-1">
-      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}20` }}>
+      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)` }}>
         <span className="material-symbols-outlined" style={{ color, fontSize: 22 }}>{icon}</span>
       </div>
       <div>
-        <h2 className="text-base font-bold text-[#1e293b] leading-tight">{title}</h2>
-        <p className="text-xs text-[#64748b]">{subtitle}</p>
+        <h2 className="text-base font-bold text-fg leading-tight">{title}</h2>
+        <p className="text-xs text-muted">{subtitle}</p>
       </div>
     </div>
   );
 }
-function Section({ title, icon, accent = "#0040a1", children }) {
+function Section({ title, icon, accent = "var(--color-brand)", children }) {
   return (
-    <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
-      <h2 className="flex items-center gap-2 font-bold text-[#1e293b] mb-2">
+    <div className="bg-surface rounded-2xl p-4 border border-line">
+      <h2 className="flex items-center gap-2 font-bold text-fg mb-2">
         <span className="material-symbols-outlined text-[20px]" style={{ color: accent }}>{icon}</span>
         {title}
       </h2>
@@ -356,14 +356,14 @@ function Section({ title, icon, accent = "#0040a1", children }) {
   );
 }
 function Row({ label, value, green, accent, bold }) {
-  const color = accent ? accent : green ? "#10b981" : "#1e293b";
+  const color = accent ? accent : green ? "var(--color-success)" : "var(--color-fg)";
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-[#f1f5f9] last:border-0">
-      <span className="text-sm text-[#64748b]">{label}</span>
+    <div className="flex items-center justify-between py-1.5 border-b border-surface-mute last:border-0">
+      <span className="text-sm text-muted">{label}</span>
       <span className={`font-bold ${bold ? "text-base" : "text-sm"}`} style={{ color }}>{value}</span>
     </div>
   );
 }
 function Empty({ text }) {
-  return <p className="text-sm text-[#94a3b8] py-2">{text}</p>;
+  return <p className="text-sm text-subtle py-2">{text}</p>;
 }

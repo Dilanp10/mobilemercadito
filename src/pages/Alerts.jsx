@@ -84,7 +84,7 @@ export default function Alerts() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16 text-[#64748b]">
+      <div className="flex justify-center py-16 text-muted">
         <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
       </div>
     );
@@ -94,14 +94,14 @@ export default function Alerts() {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <TabButton active={tab === "expiring"} onClick={() => setTab("expiring")}
-          icon="schedule" label="Por vencer" count={expiring.length} color="#ef4444" />
+          icon="schedule" label="Por vencer" count={expiring.length} color="var(--color-danger)" />
         <TabButton active={tab === "lowStock"} onClick={() => setTab("lowStock")}
-          icon="inventory_2" label="Stock bajo" count={lowStock.length} color="#f59e0b" />
+          icon="inventory_2" label="Stock bajo" count={lowStock.length} color="var(--color-warn)" />
       </div>
 
       {list.length === 0 ? (
-        <div className="text-center text-[#64748b] py-12">
-          <span className="material-symbols-outlined text-4xl text-[#10b981]">check_circle</span>
+        <div className="text-center text-muted py-12">
+          <span className="material-symbols-outlined text-4xl text-success">check_circle</span>
           <p className="mt-2 text-sm">Nada que avisar acá</p>
         </div>
       ) : tab === "expiring" ? (
@@ -117,11 +117,11 @@ function TabButton({ active, onClick, icon, label, count, color }) {
   return (
     <button onClick={onClick}
       className={`p-3 rounded-2xl border-2 flex items-center gap-2 ${
-        active ? "bg-white border-[#0040a1]" : "bg-white border-[#e2e8f0]"
+        active ? "bg-surface border-brand" : "bg-surface border-line"
       }`}>
       <span className="material-symbols-outlined" style={{ color }}>{icon}</span>
       <div className="text-left">
-        <p className="text-xs text-[#64748b]">{label}</p>
+        <p className="text-xs text-muted">{label}</p>
         <p className="font-bold text-lg" style={{ color }}>{count}</p>
       </div>
     </button>
@@ -131,14 +131,14 @@ function TabButton({ active, onClick, icon, label, count, color }) {
 function ExpiringList({ items }) {
   return items.map((p) => {
     const negativo = p.days < 0;
-    const tone = negativo ? "#ef4444" : p.days <= 3 ? "#ef4444" : p.days <= 7 ? "#f59e0b" : "#0040a1";
+    const tone = negativo ? "var(--color-danger)" : p.days <= 3 ? "var(--color-danger)" : p.days <= 7 ? "var(--color-warn)" : "var(--color-brand)";
     return (
-      <div key={p.uuid} className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
+      <div key={p.uuid} className="bg-surface rounded-2xl p-4 border border-line">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-[#1e293b] truncate">{p.name}</p>
-            <p className="text-xs text-[#64748b]">{p.category || "Sin categoría"}</p>
-            <p className="text-xs text-[#64748b] mt-1">
+            <p className="font-bold text-fg truncate">{p.name}</p>
+            <p className="text-xs text-muted">{p.category || "Sin categoría"}</p>
+            <p className="text-xs text-muted mt-1">
               Vence: {p.expiry.toLocaleDateString("es-AR")}
             </p>
           </div>
@@ -153,20 +153,20 @@ function ExpiringList({ items }) {
 
 function LowStockList({ items }) {
   return items.map((p) => {
-    const tone = p.stock === 0 ? "#ef4444" : p.stock <= 5 ? "#f59e0b" : "#0040a1";
+    const tone = p.stock === 0 ? "var(--color-danger)" : p.stock <= 5 ? "var(--color-warn)" : "var(--color-brand)";
     return (
-      <div key={p.uuid} className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
+      <div key={p.uuid} className="bg-surface rounded-2xl p-4 border border-line">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-[#1e293b] truncate">{p.name}</p>
-            <p className="text-xs text-[#64748b]">{p.category || "Sin categoría"}</p>
-            <p className="text-xs text-[#64748b] mt-1">
+            <p className="font-bold text-fg truncate">{p.name}</p>
+            <p className="text-xs text-muted">{p.category || "Sin categoría"}</p>
+            <p className="text-xs text-muted mt-1">
               Venta {formatMoney(p.unit_price)}
             </p>
           </div>
           <div className="text-right">
             <p className="font-bold text-2xl" style={{ color: tone }}>{p.stock}</p>
-            <p className="text-[10px] text-[#64748b] uppercase">unidades</p>
+            <p className="text-[10px] text-muted uppercase">unidades</p>
           </div>
         </div>
       </div>

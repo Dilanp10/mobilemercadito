@@ -1,14 +1,103 @@
 @import "tailwindcss";
 
-:root { font-family: Manrope, sans-serif; }
+/* El modo oscuro se activa con la clase .dark en <html> (la pone el script
+   inline de index.html antes del primer pintado, para que no haya flash). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tokens semánticos. Cada utilidad (bg-surface, text-fg, …) apunta a una
+   variable CSS, así el bloque .dark de abajo la cambia sin tocar el JSX. */
+@theme {
+  --color-bg: #f6f7fb;          /* fondo de página */
+  --color-surface: #ffffff;     /* tarjetas */
+  --color-surface-soft: #f8f9fb;/* rellenos suaves dentro de una tarjeta */
+  --color-surface-mute: #f1f5f9;/* chips, filas alternadas */
+  --color-line: #e2e8f0;        /* bordes */
+
+  --color-fg: #1e293b;          /* texto principal */
+  --color-muted: #64748b;       /* texto secundario */
+  --color-subtle: #94a3b8;      /* texto terciario */
+
+  --color-brand: #0040a1;       /* acento: texto, iconos, estados activos */
+  --color-brand-solid: #0040a1; /* fondo relleno (header, botón primario) */
+  --color-brand-press: #003080; /* mismo fondo, presionado */
+  --color-brand-deep: #002b6b;  /* variante más oscura */
+
+  --color-danger: #ef4444;
+  --color-success: #10b981;
+  --color-success-deep: #059669;
+  --color-warn: #f59e0b;
+  --color-info: #3b82f6;
+
+  /* Variantes para fondos rellenos que llevan texto blanco encima.
+     En claro coinciden con el color base; en oscuro se oscurecen para que
+     el blanco siga siendo legible. */
+  --color-danger-solid: #ef4444;
+  --color-success-solid: #10b981;
+}
+
+/* Paleta oscura. El azul de marca se aclara para que se lea sobre fondo
+   oscuro, y el relleno del header pasa a un navy profundo que mantiene la
+   identidad sin encandilar. */
+.dark {
+  --color-bg: #0f172a;
+  --color-surface: #1a2436;
+  --color-surface-soft: #222e42;
+  --color-surface-mute: #263349;
+  --color-line: #334155;
+
+  --color-fg: #e8edf5;
+  --color-muted: #9aa8bd;
+  --color-subtle: #6b7a91;
+
+  --color-brand: #6aa5f5;
+  --color-brand-solid: #16357a;
+  --color-brand-press: #1d4193;
+  --color-brand-deep: #0f2555;
+
+  --color-danger: #f87171;
+  --color-success: #34d399;
+  --color-success-deep: #10b981;
+  --color-warn: #fbbf24;
+  --color-info: #60a5fa;
+
+  --color-danger-solid: #b91c1c;
+  --color-success-solid: #047857;
+}
+
+:root {
+  font-family: Manrope, sans-serif;
+  color-scheme: light;
+}
+
+.dark {
+  /* que los controles nativos y el scrollbar acompañen */
+  color-scheme: dark;
+}
 
 * { -webkit-tap-highlight-color: transparent; }
 
 body {
   margin: 0;
-  background: #f6f7fb;
+  background: var(--color-bg);
+  color: var(--color-fg);
   /* respeta el notch / barra inferior del celu */
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Muchos inputs no declaran fondo y quedaban a merced del default del
+   navegador. Va en @layer base para que las utilidades de Tailwind
+   (bg-transparent, bg-surface, …) sigan ganando donde ya estaban puestas. */
+@layer base {
+  input,
+  select,
+  textarea {
+    background-color: var(--color-surface);
+    color: var(--color-fg);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-subtle);
+  }
 }
 
 .material-symbols-outlined {

@@ -112,7 +112,7 @@ export default function Cuaderno() {
         detail: `${formatMoney(p.cost_price)} → ${formatMoney(p.unit_price)}`,
         unit: `${p.quantity || 0} u`,
         icon: "inventory_2",
-        color: "#0040a1",
+        color: "var(--color-brand)",
       });
     }
 
@@ -129,7 +129,7 @@ export default function Cuaderno() {
         detail: `${formatMoney(w.cost_price_kg)}/kg → ${formatMoney(w.price_kg)}/kg`,
         unit: `${formatNum(w.stock || 0)} kg`,
         icon: "scale",
-        color: "#10b981",
+        color: "var(--color-success)",
       });
     }
 
@@ -169,7 +169,7 @@ export default function Cuaderno() {
         detail: b.expiry_date ? `Vence ${b.expiry_date}` : "Sin vencimiento",
         unit: `+${isWeighted ? formatNum(b.quantity) + " kg" : b.quantity + " u"}`,
         icon: isWeighted ? "scale" : "inventory_2",
-        color: "#f59e0b",
+        color: "var(--color-warn)",
       });
     }
 
@@ -194,18 +194,18 @@ export default function Cuaderno() {
   return (
     <div className="space-y-3">
       {/* Intro */}
-      <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
-        <p className="text-sm text-[#64748b]">
-          Lo que cargaste en <b className="text-[#1e293b]">los últimos 7 días</b>. Después de una semana deja de mostrarse acá (el producto sigue en el inventario).
+      <div className="bg-surface rounded-2xl p-4 border border-line">
+        <p className="text-sm text-muted">
+          Lo que cargaste en <b className="text-fg">los últimos 7 días</b>. Después de una semana deja de mostrarse acá (el producto sigue en el inventario).
         </p>
       </div>
 
       {/* Tabs: Movimientos (timeline de hoy/ayer) vs Proveedores (deuda) */}
-      <div className="flex gap-2 bg-white rounded-2xl p-1.5 border border-[#e2e8f0]">
+      <div className="flex gap-2 bg-surface rounded-2xl p-1.5 border border-line">
         <button
           onClick={() => setTab("movimientos")}
           className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
-            tab === "movimientos" ? "bg-[#0040a1] text-white" : "text-[#64748b]"
+            tab === "movimientos" ? "bg-brand-solid text-white" : "text-muted"
           }`}
         >
           📋 Movimientos
@@ -213,7 +213,7 @@ export default function Cuaderno() {
         <button
           onClick={() => setTab("proveedores")}
           className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
-            tab === "proveedores" ? "bg-[#0040a1] text-white" : "text-[#64748b]"
+            tab === "proveedores" ? "bg-brand-solid text-white" : "text-muted"
           }`}
         >
           🚚 Proveedores
@@ -226,54 +226,54 @@ export default function Cuaderno() {
         <>
           {/* Resumen */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
+            <div className="bg-surface rounded-2xl p-4 border border-line">
               <div className="flex items-center gap-2 mb-1">
-                <span className="material-symbols-outlined text-[#0040a1] text-[18px]">inventory_2</span>
-                <span className="text-xs text-[#64748b]">Productos nuevos</span>
+                <span className="material-symbols-outlined text-brand text-[18px]">inventory_2</span>
+                <span className="text-xs text-muted">Productos nuevos</span>
               </div>
-              <p className="text-2xl font-extrabold text-[#0040a1]">{totalNuevos}</p>
+              <p className="text-2xl font-extrabold text-brand">{totalNuevos}</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
+            <div className="bg-surface rounded-2xl p-4 border border-line">
               <div className="flex items-center gap-2 mb-1">
-                <span className="material-symbols-outlined text-[#f59e0b] text-[18px]">inbox</span>
-                <span className="text-xs text-[#64748b]">Fardos sumados</span>
+                <span className="material-symbols-outlined text-warn text-[18px]">inbox</span>
+                <span className="text-xs text-muted">Fardos sumados</span>
               </div>
-              <p className="text-2xl font-extrabold text-[#f59e0b]">{totalFardos}</p>
+              <p className="text-2xl font-extrabold text-warn">{totalFardos}</p>
             </div>
           </div>
 
           {/* Acción */}
           <button
             onClick={load}
-            className="w-full py-2 bg-white border border-[#e2e8f0] rounded-xl text-sm text-[#0040a1] font-semibold flex items-center justify-center gap-2"
+            className="w-full py-2 bg-surface border border-line rounded-xl text-sm text-brand font-semibold flex items-center justify-center gap-2"
           >
             <span className="material-symbols-outlined text-[18px]">refresh</span>
             Actualizar
           </button>
 
           {loading ? <Loader /> : events.length === 0 ? (
-            <div className="bg-white rounded-2xl p-10 border border-[#e2e8f0] text-center">
-              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-[#0040a1]/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-3xl text-[#0040a1]">menu_book</span>
+            <div className="bg-surface rounded-2xl p-10 border border-line text-center">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-brand/10 flex items-center justify-center">
+                <span className="material-symbols-outlined text-3xl text-brand">menu_book</span>
               </div>
-              <p className="font-semibold text-[#1e293b]">No cargaste nada en los últimos 2 días</p>
-              <p className="text-sm text-[#94a3b8] mt-1">Cuando agregues productos o sumes fardos, van a aparecer acá.</p>
+              <p className="font-semibold text-fg">No cargaste nada en los últimos 2 días</p>
+              <p className="text-sm text-subtle mt-1">Cuando agregues productos o sumes fardos, van a aparecer acá.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {groups.map(([day, items]) => (
                 <div key={day}>
                   <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-base font-bold text-[#1e293b]">{day}</h3>
-                    <span className="text-xs text-[#94a3b8]">{items.length} {items.length === 1 ? "mov." : "movs."}</span>
-                    <div className="flex-1 h-px bg-[#e2e8f0]" />
+                    <h3 className="text-base font-bold text-fg">{day}</h3>
+                    <span className="text-xs text-subtle">{items.length} {items.length === 1 ? "mov." : "movs."}</span>
+                    <div className="flex-1 h-px bg-line" />
                   </div>
                   <div className="space-y-2">
                     {items.map((ev) => (
-                      <div key={ev.id} className="bg-white border border-[#e2e8f0] rounded-2xl p-3 flex items-center gap-3">
+                      <div key={ev.id} className="bg-surface border border-line rounded-2xl p-3 flex items-center gap-3">
                         <div
                           className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: `${ev.color}15` }}
+                          style={{ backgroundColor: `color-mix(in srgb, ${ev.color} 12%, transparent)` }}
                         >
                           <span className="material-symbols-outlined text-[20px]" style={{ color: ev.color }}>
                             {ev.icon}
@@ -281,17 +281,17 @@ export default function Cuaderno() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-bold text-[#1e293b] text-sm truncate">{ev.title}</p>
-                            <span className="text-[9px] text-[#94a3b8] shrink-0">{timeOf(ev.when)}</span>
+                            <p className="font-bold text-fg text-sm truncate">{ev.title}</p>
+                            <span className="text-[9px] text-subtle shrink-0">{timeOf(ev.when)}</span>
                           </div>
-                          <p className="text-xs text-[#64748b] truncate">
+                          <p className="text-xs text-muted truncate">
                             {ev.type === "batch" ? ev.subtitle : ev.subtitle}
                           </p>
-                          <p className="text-[11px] text-[#94a3b8] truncate">{ev.detail}</p>
+                          <p className="text-[11px] text-subtle truncate">{ev.detail}</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-base font-extrabold" style={{ color: ev.color }}>{ev.unit}</p>
-                          <p className="text-[9px] text-[#94a3b8] uppercase font-semibold">
+                          <p className="text-[9px] text-subtle uppercase font-semibold">
                             {ev.type === "batch" ? "Fardo" : "Nuevo"}
                           </p>
                         </div>

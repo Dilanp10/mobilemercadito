@@ -50,7 +50,7 @@ export default function App() {
 
   if (session === undefined) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-[#64748b] gap-3 px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center text-muted gap-3 px-6">
         <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
         <p className="text-xs text-center">Conectando…</p>
       </div>
