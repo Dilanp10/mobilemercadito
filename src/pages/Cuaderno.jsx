@@ -1,7 +1,7 @@
-// Cuaderno (mobile): log de productos cargados hoy y ayer.
+// Cuaderno (mobile): log de productos cargados en la última semana.
 // Lee de Supabase (la nube). No registra nada nuevo — filtra por las fechas
 // que ya existen en products.created_at, weighted_products.created_at y
-// product_batches.entry_date. Pasados 2 días deja de mostrarse aquí.
+// product_batches.entry_date. Pasados 7 días deja de mostrarse aquí.
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
 import { formatMoney, formatNum } from "../utils";
@@ -14,11 +14,17 @@ function toDate(s) {
 }
 
 function dayLabel(d) {
-  const today = new Date();
-  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startYesterday = new Date(startToday);
+  startYesterday.setDate(startYesterday.getDate() - 1);
   if (d >= startToday) return "Hoy";
-  if (d >= yesterday) return "Ayer";
+  if (d >= startYesterday) return "Ayer";
+  const diffDays = Math.floor((startToday - d) / (1000 * 60 * 60 * 24));
+  if (diffDays >= 2 && diffDays <= 6) {
+    const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    return `${dias[d.getDay()]} ${d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}`;
+  }
   return d.toLocaleDateString("es-AR");
 }
 
@@ -37,9 +43,9 @@ export default function Cuaderno() {
 
   async function load() {
     setLoading(true);
-    // Solo traemos lo de los últimos 2 días (más liviano que traer todo)
+    // Solo traemos lo de los últimos 7 días (ventana semanal)
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 2);
+    cutoff.setDate(cutoff.getDate() - 7);
     cutoff.setHours(0, 0, 0, 0);
     const sinceISO = cutoff.toISOString().slice(0, 19).replace("T", " ");
 
@@ -89,7 +95,7 @@ export default function Cuaderno() {
 
   const events = useMemo(() => {
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 2);
+    cutoff.setDate(cutoff.getDate() - 7);
     cutoff.setHours(0, 0, 0, 0);
     const items = [];
 
@@ -141,11 +147,14 @@ export default function Cuaderno() {
         if (Math.abs(d - parentDate) < 5000) continue;
       }
 
+      // Nombre: primero el padre "nuevo" (últimos 7 días), si no el resuelto por UUID
+      const resolvedName = parent?.name || parentNames[b.product_uuid]?.name || "Producto";
+
       items.push({
         id: `batch-${b.uuid}`,
         when: d,
         type: "batch",
-        title: parent?.name || "Producto",
+        title: resolvedName,
         subtitle: isWeighted ? "Fardo (por peso)" : "Fardo (común)",
         detail: b.expiry_date ? `Vence ${b.expiry_date}` : "Sin vencimiento",
         unit: `+${isWeighted ? formatNum(b.quantity) + " kg" : b.quantity + " u"}`,
@@ -156,7 +165,7 @@ export default function Cuaderno() {
 
     items.sort((a, b) => b.when - a.when);
     return items;
-  }, [products, weighted, batches]);
+  }, [products, weighted, batches, parentNames]);
 
   // Agrupar por Hoy / Ayer
   const groups = useMemo(() => {
@@ -177,7 +186,7 @@ export default function Cuaderno() {
       {/* Intro */}
       <div className="bg-white rounded-2xl p-4 border border-[#e2e8f0]">
         <p className="text-sm text-[#64748b]">
-          Lo que cargaste <b className="text-[#1e293b]">hoy y ayer</b>. Después de 2 días deja de mostrarse acá (el producto sigue en el inventario).
+          Lo que cargaste en <b className="text-[#1e293b]">los últimos 7 días</b>. Después de una semana deja de mostrarse acá (el producto sigue en el inventario).
         </p>
       </div>
 
