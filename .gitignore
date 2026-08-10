@@ -4,3 +4,8 @@ dist
 .env.local
 .vercel
 *.log
+
+# Tests locales: el fixture tiene precios de costo y margenes reales y este
+# repo es publico. No subir.
+src/__tests__/
+vitest.config.js

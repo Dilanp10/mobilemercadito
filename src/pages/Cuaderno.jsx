@@ -213,16 +213,14 @@ export default function Cuaderno() {
 
   // Con un mes de historial hay demasiados items para mostrarlos todos de una:
   // arrancan abiertos los dos días más recientes y el resto se despliega al tocar.
-  const [abiertos, setAbiertos] = useState(null); // null = todavía sin inicializar
-  useEffect(() => {
-    if (abiertos === null && groups.length) {
-      setAbiertos(new Set(groups.slice(0, 2).map(([day]) => day)));
-    }
-  }, [groups, abiertos]);
+  // El default se calcula acá y no en un efecto, para que no haya un render
+  // intermedio con todo cerrado apenas llegan los datos.
+  const [elegidos, setElegidos] = useState(null); // null = el usuario todavía no tocó nada
+  const abiertos = elegidos ?? new Set(groups.slice(0, 2).map(([day]) => day));
 
   function toggleDia(day) {
-    setAbiertos((prev) => {
-      const next = new Set(prev || []);
+    setElegidos((prev) => {
+      const next = new Set(prev ?? groups.slice(0, 2).map(([d]) => d));
       if (next.has(day)) next.delete(day);
       else next.add(day);
       return next;
@@ -303,7 +301,7 @@ export default function Cuaderno() {
           ) : (
             <div className="space-y-4">
               {groups.map(([day, items]) => {
-                const abierto = abiertos?.has(day) ?? false;
+                const abierto = abiertos.has(day);
                 return (
                 <div key={day}>
                   <button
