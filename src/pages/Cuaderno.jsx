@@ -1,12 +1,24 @@
-// Cuaderno (mobile): log de productos cargados en la última semana.
+// Cuaderno (mobile): log de productos cargados en el último mes.
 // Lee de Supabase (la nube). No registra nada nuevo — filtra por las fechas
 // que ya existen en products.created_at, weighted_products.created_at y
-// product_batches.entry_date. Pasados 7 días deja de mostrarse aquí.
+// product_batches.entry_date. Pasados DIAS_VENTANA días deja de mostrarse aquí.
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
 import { formatMoney, formatNum } from "../utils";
 import { Loader } from "./Products";
 import Proveedores from "./Proveedores";
+
+// Días que abarca el cuaderno. Un mes son varios cientos de movimientos,
+// por eso los días viejos arrancan plegados (ver `abiertos` más abajo).
+const DIAS_VENTANA = 30;
+
+// Fecha de corte, a las 00:00 del día más viejo que mostramos.
+function inicioVentana() {
+  const d = new Date();
+  d.setDate(d.getDate() - DIAS_VENTANA);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 function toDate(s) {
   if (!s) return new Date(0);
@@ -21,11 +33,14 @@ function dayLabel(d) {
   if (d >= startToday) return "Hoy";
   if (d >= startYesterday) return "Ayer";
   const diffDays = Math.floor((startToday - d) / (1000 * 60 * 60 * 24));
-  if (diffDays >= 2 && diffDays <= 6) {
+  const fecha = d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+  // Dentro de la semana el día de la semana ubica mejor que la fecha;
+  // más atrás se repetiría, así que dejamos solo día/mes.
+  if (diffDays <= 6) {
     const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    return `${dias[d.getDay()]} ${d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}`;
+    return `${dias[d.getDay()]} ${fecha}`;
   }
-  return d.toLocaleDateString("es-AR");
+  return fecha;
 }
 
 function timeOf(d) {
@@ -43,16 +58,26 @@ export default function Cuaderno() {
 
   async function load() {
     setLoading(true);
-    // Solo traemos lo de los últimos 7 días (ventana semanal)
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 7);
-    cutoff.setHours(0, 0, 0, 0);
-    const sinceISO = cutoff.toISOString().slice(0, 19).replace("T", " ");
+    const sinceISO = inicioVentana().toISOString().slice(0, 19).replace("T", " ");
 
+    // Pedimos solo las columnas que se muestran: un mes son ~1200 filas y con
+    // select("*") se iban varios cientos de KB de datos móviles al pedo.
     const [p, w, b] = await Promise.all([
-      supabase.from("products").select("*").eq("is_deleted", 0).gte("created_at", sinceISO),
-      supabase.from("weighted_products").select("*").eq("is_deleted", 0).gte("created_at", sinceISO),
-      supabase.from("product_batches").select("*").eq("is_deleted", 0).gte("entry_date", sinceISO),
+      supabase
+        .from("products")
+        .select("uuid, name, category, cost_price, unit_price, quantity, created_at")
+        .eq("is_deleted", 0)
+        .gte("created_at", sinceISO),
+      supabase
+        .from("weighted_products")
+        .select("uuid, name, category, cost_price_kg, price_kg, stock, created_at")
+        .eq("is_deleted", 0)
+        .gte("created_at", sinceISO),
+      supabase
+        .from("product_batches")
+        .select("uuid, product_uuid, product_source, quantity, entry_date, expiry_date, created_at")
+        .eq("is_deleted", 0)
+        .gte("entry_date", sinceISO),
     ]);
     const prodList = p.data || [];
     const wpList = w.data || [];
@@ -94,9 +119,7 @@ export default function Cuaderno() {
   useEffect(() => { load(); }, []);
 
   const events = useMemo(() => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 7);
-    cutoff.setHours(0, 0, 0, 0);
+    const cutoff = inicioVentana();
     const items = [];
 
     // Productos comunes nuevos
@@ -177,7 +200,7 @@ export default function Cuaderno() {
     return items;
   }, [products, weighted, batches, parentNames]);
 
-  // Agrupar por Hoy / Ayer
+  // Agrupar por día (Hoy, Ayer, Lunes 04/08, 25/07, …)
   const groups = useMemo(() => {
     const m = new Map();
     for (const ev of events) {
@@ -188,6 +211,24 @@ export default function Cuaderno() {
     return [...m.entries()];
   }, [events]);
 
+  // Con un mes de historial hay demasiados items para mostrarlos todos de una:
+  // arrancan abiertos los dos días más recientes y el resto se despliega al tocar.
+  const [abiertos, setAbiertos] = useState(null); // null = todavía sin inicializar
+  useEffect(() => {
+    if (abiertos === null && groups.length) {
+      setAbiertos(new Set(groups.slice(0, 2).map(([day]) => day)));
+    }
+  }, [groups, abiertos]);
+
+  function toggleDia(day) {
+    setAbiertos((prev) => {
+      const next = new Set(prev || []);
+      if (next.has(day)) next.delete(day);
+      else next.add(day);
+      return next;
+    });
+  }
+
   const totalNuevos = events.filter((e) => e.type !== "batch").length;
   const totalFardos = events.filter((e) => e.type === "batch").length;
 
@@ -196,7 +237,7 @@ export default function Cuaderno() {
       {/* Intro */}
       <div className="bg-surface rounded-2xl p-4 border border-line">
         <p className="text-sm text-muted">
-          Lo que cargaste en <b className="text-fg">los últimos 7 días</b>. Después de una semana deja de mostrarse acá (el producto sigue en el inventario).
+          Lo que cargaste en <b className="text-fg">el último mes</b>. Después de 30 días deja de mostrarse acá (el producto sigue en el inventario). Tocá un día para abrirlo o cerrarlo.
         </p>
       </div>
 
@@ -256,20 +297,34 @@ export default function Cuaderno() {
               <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-brand/10 flex items-center justify-center">
                 <span className="material-symbols-outlined text-3xl text-brand">menu_book</span>
               </div>
-              <p className="font-semibold text-fg">No cargaste nada en los últimos 2 días</p>
+              <p className="font-semibold text-fg">No cargaste nada en el último mes</p>
               <p className="text-sm text-subtle mt-1">Cuando agregues productos o sumes fardos, van a aparecer acá.</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {groups.map(([day, items]) => (
+              {groups.map(([day, items]) => {
+                const abierto = abiertos?.has(day) ?? false;
+                return (
                 <div key={day}>
-                  <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => toggleDia(day)}
+                    className="w-full flex items-center gap-2 mb-2"
+                    aria-expanded={abierto}
+                  >
+                    <span
+                      className={`material-symbols-outlined text-[20px] text-subtle transition-transform ${
+                        abierto ? "rotate-90" : ""
+                      }`}
+                    >
+                      chevron_right
+                    </span>
                     <h3 className="text-base font-bold text-fg">{day}</h3>
                     <span className="text-xs text-subtle">{items.length} {items.length === 1 ? "mov." : "movs."}</span>
                     <div className="flex-1 h-px bg-line" />
-                  </div>
+                  </button>
+                  {/* Render condicional, no CSS: un día plegado no monta sus nodos */}
                   <div className="space-y-2">
-                    {items.map((ev) => (
+                    {abierto && items.map((ev) => (
                       <div key={ev.id} className="bg-surface border border-line rounded-2xl p-3 flex items-center gap-3">
                         <div
                           className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
@@ -299,7 +354,8 @@ export default function Cuaderno() {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>
