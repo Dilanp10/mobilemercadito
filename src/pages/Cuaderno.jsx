@@ -62,30 +62,30 @@ export default function Cuaderno() {
     setBatches(batchList);
 
     // Resolver nombres de productos padre que NO estén en la lista de "nuevos"
-    // (porque pueden ser productos viejos a los que les estás sumando un fardo hoy)
+    // (porque pueden ser productos viejos a los que les estás sumando un fardo hoy).
+    // No confiamos en product_source: buscamos el uuid en ambas tablas y usamos
+    // el que aparezca. Así resolvemos batches con source vacío o mal seteado.
     const knownUuids = new Set([...prodList.map((x) => x.uuid), ...wpList.map((x) => x.uuid)]);
-    const missingCommon = [];
-    const missingWeighted = [];
-    for (const bt of batchList) {
-      if (!bt.product_uuid || knownUuids.has(bt.product_uuid)) continue;
-      if (bt.product_source === "weighted_products") missingWeighted.push(bt.product_uuid);
-      else missingCommon.push(bt.product_uuid);
-    }
+    const missing = [
+      ...new Set(
+        batchList
+          .map((bt) => bt.product_uuid)
+          .filter((u) => u && !knownUuids.has(u))
+      ),
+    ];
 
     const names = {};
-    if (missingCommon.length) {
-      const { data } = await supabase
-        .from("products")
-        .select("uuid, name")
-        .in("uuid", [...new Set(missingCommon)]);
-      for (const r of data || []) names[r.uuid] = { name: r.name, source: "products" };
-    }
-    if (missingWeighted.length) {
-      const { data } = await supabase
-        .from("weighted_products")
-        .select("uuid, name")
-        .in("uuid", [...new Set(missingWeighted)]);
-      for (const r of data || []) names[r.uuid] = { name: r.name, source: "weighted_products" };
+    if (missing.length) {
+      const [rc, rw] = await Promise.all([
+        supabase.from("products").select("uuid, name").in("uuid", missing),
+        supabase.from("weighted_products").select("uuid, name").in("uuid", missing),
+      ]);
+      // Common primero; si también aparece en weighted, weighted lo sobreescribe
+      // solo cuando common no lo trajo.
+      for (const r of rc.data || []) names[r.uuid] = { name: r.name, source: "products" };
+      for (const r of rw.data || []) {
+        if (!names[r.uuid]) names[r.uuid] = { name: r.name, source: "weighted_products" };
+      }
     }
     setParentNames(names);
 
@@ -138,8 +138,18 @@ export default function Cuaderno() {
       const d = toDate(b.entry_date || b.created_at);
       if (d < cutoff) continue;
 
-      const isWeighted = b.product_source === "weighted_products";
-      const parent = (isWeighted ? weighted : products).find((x) => x.uuid === b.product_uuid);
+      // Buscar el padre en ambas listas de "nuevos" sin confiar en product_source
+      const parentCommon = products.find((x) => x.uuid === b.product_uuid);
+      const parentWeighted = weighted.find((x) => x.uuid === b.product_uuid);
+      const parent = parentCommon || parentWeighted;
+
+      // Fuente resuelta: la que encontramos, si no la del batch, si no el fallback
+      const resolvedSource =
+        (parentWeighted && "weighted_products") ||
+        (parentCommon && "products") ||
+        parentNames[b.product_uuid]?.source ||
+        b.product_source;
+      const isWeighted = resolvedSource === "weighted_products";
 
       // No mostrar si el padre se creó casi al mismo tiempo (es la tanda inicial)
       if (parent) {
