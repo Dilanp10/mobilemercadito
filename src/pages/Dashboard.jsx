@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
-import { formatMoney, formatNum } from "../utils";
+import { formatMoney, formatNum, startOfBusinessMonth, businessMonthLabel } from "../utils";
 
 const PERIODS = [
   { key: "hoy", label: "Hoy" },
@@ -17,14 +17,6 @@ function toDate(str) {
 // Inicio del día (00:00) de una fecha
 function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-// El mes comercial arranca el 20 (misma regla que la compu del local):
-// del 20 al 19 del mes siguiente. Devuelve el 20 que abre el ciclo actual.
-const MONTH_START_DAY = 20;
-function startOfBusinessMonth(now, offset = 0) {
-  const m = now.getDate() >= MONTH_START_DAY ? now.getMonth() : now.getMonth() - 1;
-  return new Date(now.getFullYear(), m + offset, MONTH_START_DAY);
 }
 
 // Etiqueta corta para el botón de cada día (i = 0 es hoy)
@@ -124,14 +116,8 @@ export default function Dashboard() {
   }, [sales, period, selectedDay]);
 
   const periodLabel = useMemo(() => {
-    const fmt = (d) => d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
-    const now = new Date();
-    if (period === "mes") return `Del ${fmt(startOfBusinessMonth(now))} a hoy`;
-    if (period === "mes_anterior") {
-      const fin = new Date(startOfBusinessMonth(now));
-      fin.setDate(fin.getDate() - 1);
-      return `Del ${fmt(startOfBusinessMonth(now, -1))} al ${fmt(fin)}`;
-    }
+    if (period === "mes") return businessMonthLabel(new Date());
+    if (period === "mes_anterior") return businessMonthLabel(new Date(), true);
     return null;
   }, [period]);
 

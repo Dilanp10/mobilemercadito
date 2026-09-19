@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
-import { formatMoney, formatNum } from "../utils";
+import { formatMoney, formatNum, startOfBusinessMonth, businessMonthLabel } from "../utils";
 import { Loader } from "./Products";
 
 const FILTERS = [
@@ -89,13 +89,17 @@ export default function History() {
       return d >= desde && d < hasta;
     }
     if (period === "semana") { const c = new Date(now); c.setDate(c.getDate() - 6); return d >= startOfDay(c); }
-    if (period === "mes") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    if (period === "mes_anterior") {
-      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      return d.getMonth() === prev.getMonth() && d.getFullYear() === prev.getFullYear();
-    }
+    if (period === "mes") return d >= startOfBusinessMonth(now) && d < startOfBusinessMonth(now, 1);
+    if (period === "mes_anterior") return d >= startOfBusinessMonth(now, -1) && d < startOfBusinessMonth(now);
     return true; // "todo"
   };
+
+  const periodLabel = useMemo(() => {
+    if (period === "dia") return dayFullLabel(selectedDay);
+    if (period === "mes") return businessMonthLabel(new Date());
+    if (period === "mes_anterior") return businessMonthLabel(new Date(), true);
+    return PERIODS.find((p) => p.key === period)?.label;
+  }, [period, selectedDay]);
 
   // Agrupar por venta (sale_group_id), excluyendo cierres de cuenta
   const groups = useMemo(() => {
@@ -211,7 +215,7 @@ export default function History() {
       {/* Total */}
       <div className="bg-surface rounded-2xl p-4 border border-line flex items-center justify-between">
         <div>
-          <p className="text-xs text-muted">Recaudado ({period === "dia" ? dayFullLabel(selectedDay) : PERIODS.find((p) => p.key === period)?.label})</p>
+          <p className="text-xs text-muted">Recaudado ({periodLabel})</p>
           <p className="text-2xl font-extrabold text-success">{formatMoney(totalPeriodo)}</p>
         </div>
         <div className="text-right">
