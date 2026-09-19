@@ -93,14 +93,18 @@ export default function Accounts() {
 function AccountDetail({ account, onClose }) {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [editForm, setEditForm] = useState({ quantity: "", total_price: "" });
+  const [toast, setToast] = useState("");
+  const confirm = useConfirm();
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("sales").select("*").eq("account_id", String(account.id)).eq("is_deleted", 0).order("created_at", { ascending: false });
-      setSales(data || []);
-      setLoading(false);
-    })();
-  }, [account]);
+  async function load() {
+    const { data } = await supabase.from("sales").select("*").eq("account_id", String(account.id)).eq("is_deleted", 0).order("created_at", { ascending: false });
+    setSales(data || []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, [account]);
+  function flash(m) { setToast(m); setTimeout(() => setToast(""), 2500); }
 
   const total = sales
     .filter((s) => s.product_type !== "account_close")
@@ -117,6 +121,67 @@ function AccountDetail({ account, onClose }) {
     return [...m.values()];
   }, [sales]);
 
+  // Todas las filas de una venta repiten sale_total (History y Caja lo leen
+  // de ahí), así que tras tocar un ítem hay que dejarlo consistente en todas.
+  async function syncGroupTotal(groupId, remaining) {
+    if (!groupId) return null;
+    const sum = remaining.reduce((a, s) => a + Number(s.total_price || 0), 0);
+    const { error } = await supabase.from("sales")
+      .update({ sale_total: sum, ...stampUpdate() })
+      .eq("sale_group_id", groupId).eq("is_deleted", 0);
+    return error;
+  }
+
+  function openEdit(it) {
+    setEditForm({ quantity: String(it.quantity ?? ""), total_price: String(it.total_price ?? "") });
+    setEditing(it);
+  }
+
+  async function saveEdit() {
+    const qty = Number(editForm.quantity);
+    const price = Number(editForm.total_price);
+    const custom = editing.product_type === "custom";
+    if (!custom && (!Number.isFinite(qty) || qty <= 0)) return flash("Cantidad inválida");
+    if (!Number.isFinite(price) || price < 0) return flash("Precio inválido");
+
+    const patch = { total_price: price, ...stampUpdate() };
+    if (!custom) {
+      patch.quantity = qty;
+      patch.unit_price = qty > 0 ? price / qty : editing.unit_price;
+    }
+    if (!editing.sale_group_id) patch.sale_total = price;
+
+    const { error } = await supabase.from("sales").update(patch).eq("uuid", editing.uuid);
+    if (error) return flash("Error: " + error.message);
+
+    const remaining = sales
+      .filter((s) => s.sale_group_id === editing.sale_group_id)
+      .map((s) => (s.uuid === editing.uuid ? { ...s, total_price: price } : s));
+    const err2 = await syncGroupTotal(editing.sale_group_id, remaining);
+    if (err2) return flash("Error: " + err2.message);
+
+    setEditing(null); await load(); flash("Ítem actualizado ✓");
+  }
+
+  async function deleteItem(it) {
+    const ok = await confirm({
+      title: "Quitar ítem",
+      message: `¿Quitar "${it.product_name}" (${formatMoney(it.total_price)}) de la cuenta de ${account.name}? El registro se oculta, no se borra.`,
+      confirmText: "Quitar",
+      danger: true,
+    });
+    if (!ok) return;
+
+    const { error } = await supabase.from("sales").update({ is_deleted: 1, ...stampUpdate() }).eq("uuid", it.uuid);
+    if (error) return flash("Error: " + error.message);
+
+    const remaining = sales.filter((s) => s.sale_group_id === it.sale_group_id && s.uuid !== it.uuid);
+    const err2 = await syncGroupTotal(it.sale_group_id, remaining);
+    if (err2) return flash("Error: " + err2.message);
+
+    await load(); flash("Ítem quitado");
+  }
+
   return (
     <Modal title={`${account.name} ${account.last_name}`} onClose={onClose}>
       <div className="bg-brand/5 rounded-xl p-3 flex items-center justify-between">
@@ -130,20 +195,40 @@ function AccountDetail({ account, onClose }) {
           {groups.map((g, i) => (
             <div key={i} className="border border-line rounded-xl p-3">
               <p className="text-xs text-subtle mb-1">{(g.fecha || "").slice(0, 16)}</p>
-              {g.items.map((it) => (
-                <div key={it.uuid} className="flex justify-between text-sm py-0.5">
-                  <span className="text-fg">
-                    {it.product_type === "account_close" ? "🔒 Cierre" : it.product_name}
-                    {it.product_type !== "account_close" && it.product_type !== "custom" &&
-                      <span className="text-subtle"> ×{formatNum(it.quantity, it.quantity % 1 === 0 ? 0 : 2)}</span>}
-                  </span>
-                  <b className="text-fg">{formatMoney(it.total_price)}</b>
-                </div>
-              ))}
+              {g.items.map((it) => {
+                const isClose = it.product_type === "account_close";
+                return (
+                  <div key={it.uuid} className="flex items-center gap-1 text-sm py-0.5">
+                    <span className="flex-1 text-fg">
+                      {isClose ? "🔒 Cierre" : it.product_name}
+                      {!isClose && it.product_type !== "custom" &&
+                        <span className="text-subtle"> ×{formatNum(it.quantity, it.quantity % 1 === 0 ? 0 : 2)}</span>}
+                    </span>
+                    <b className="text-fg">{formatMoney(it.total_price)}</b>
+                    {!isClose && (
+                      <>
+                        <IconBtn icon="edit" color="var(--color-brand)" onClick={() => openEdit(it)} />
+                        <IconBtn icon="delete" color="var(--color-danger)" onClick={() => deleteItem(it)} />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
       )}
+
+      {editing && (
+        <Modal title={`Editar: ${editing.product_name}`} onClose={() => setEditing(null)}>
+          {editing.product_type !== "custom" && (
+            <Field label="Cantidad" value={editForm.quantity} onChange={(v) => setEditForm({ ...editForm, quantity: v })} />
+          )}
+          <Field label="Precio total ($)" value={editForm.total_price} onChange={(v) => setEditForm({ ...editForm, total_price: v })} />
+          <button onClick={saveEdit} className="w-full py-3 bg-brand-solid text-white rounded-xl font-bold">Guardar cambios</button>
+        </Modal>
+      )}
+      {toast && <Toast text={toast} />}
     </Modal>
   );
 }
