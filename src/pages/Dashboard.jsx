@@ -19,6 +19,14 @@ function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+// El mes comercial arranca el 20 (misma regla que la compu del local):
+// del 20 al 19 del mes siguiente. Devuelve el 20 que abre el ciclo actual.
+const MONTH_START_DAY = 20;
+function startOfBusinessMonth(now, offset = 0) {
+  const m = now.getDate() >= MONTH_START_DAY ? now.getMonth() : now.getMonth() - 1;
+  return new Date(now.getFullYear(), m + offset, MONTH_START_DAY);
+}
+
 // Etiqueta corta para el botón de cada día (i = 0 es hoy)
 function dayChipLabel(d, i) {
   if (i === 0) return "Hoy";
@@ -106,15 +114,26 @@ export default function Dashboard() {
         return d >= startOf(c);
       }
       if (period === "mes") {
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return d >= startOfBusinessMonth(now) && d < startOfBusinessMonth(now, 1);
       }
       if (period === "mes_anterior") {
-        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        return d.getMonth() === prev.getMonth() && d.getFullYear() === prev.getFullYear();
+        return d >= startOfBusinessMonth(now, -1) && d < startOfBusinessMonth(now);
       }
       return true;
     });
   }, [sales, period, selectedDay]);
+
+  const periodLabel = useMemo(() => {
+    const fmt = (d) => d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+    const now = new Date();
+    if (period === "mes") return `Del ${fmt(startOfBusinessMonth(now))} a hoy`;
+    if (period === "mes_anterior") {
+      const fin = new Date(startOfBusinessMonth(now));
+      fin.setDate(fin.getDate() - 1);
+      return `Del ${fmt(startOfBusinessMonth(now, -1))} al ${fmt(fin)}`;
+    }
+    return null;
+  }, [period]);
 
   // Costo de una lista de ventas (busca el producto por id y, si no, por nombre)
   function calcCosto(list) {
@@ -223,7 +242,9 @@ export default function Dashboard() {
 
       {/* Ganancia combinada destacada */}
       <div className="bg-gradient-to-br from-success to-success-deep rounded-2xl p-5 text-white">
-        <p className="text-sm text-white/80">Ganancia total del período</p>
+        <p className="text-sm text-white/80">
+          Ganancia total del período{periodLabel && <span className="text-white/70"> · {periodLabel}</span>}
+        </p>
         <p className="text-4xl font-extrabold mt-1">{formatMoney(total.ganancia)}</p>
         <div className="flex items-center gap-3 mt-2 text-sm text-white/90">
           <span>Margen {formatNum(total.margen, 1)}%</span>
