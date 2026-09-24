@@ -161,7 +161,7 @@ export default function Products() {
         </Modal>
       )}
 
-      {detail && <ProductDetail product={detail} onClose={() => setDetail(null)} onSaved={(m) => { flash(m); load(); }} />}
+      {detail && <ProductDetail product={detail} onClose={() => { setDetail(null); load(); }} onSaved={(m) => { flash(m); load(); }} />}
       {scanning && (
         <BarcodeScanner
           onScan={(code) => { setAddForm((f) => ({ ...f, barcode: code })); setScanning(false); flash("Código leído ✓"); }}

@@ -144,7 +144,7 @@ export default function Weighted() {
         </Modal>
       )}
 
-      {detail && <WeightedDetail product={detail} onClose={() => setDetail(null)} onSaved={(m) => { flash(m); load(); }} />}
+      {detail && <WeightedDetail product={detail} onClose={() => { setDetail(null); load(); }} onSaved={(m) => { flash(m); load(); }} />}
       {toast && <Toast text={toast} />}
     </div>
   );
