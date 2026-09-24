@@ -1,7 +1,29 @@
+import { supabase } from "./supabase";
+
 // Formato de moneda/numeros argentino: 27.540,00
 const AR = (d) => ({ minimumFractionDigits: d, maximumFractionDigits: d });
 export const formatNum = (v, d = 2) => Number(v || 0).toLocaleString("es-AR", AR(d));
 export const formatMoney = (v) => `$${formatNum(v)}`;
+
+// Suma de fardos por producto (product_uuid -> total). Pagina de a 1000 filas:
+// Supabase corta silenciosamente en 1000 sin esto, y con >1000 fardos activos
+// quedaban productos mostrando stock 0 en la lista aunque tenían fardos reales.
+export async function fetchAllBatchQuantities(productSource) {
+  const map = {};
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("product_batches")
+      .select("product_uuid, quantity")
+      .eq("product_source", productSource)
+      .eq("is_deleted", 0)
+      .range(from, from + PAGE - 1);
+    if (error || !data) break;
+    for (const b of data) map[b.product_uuid] = (map[b.product_uuid] || 0) + Number(b.quantity || 0);
+    if (data.length < PAGE) break;
+  }
+  return map;
+}
 
 // Marca de tiempo en hora local de Argentina (UTC-3) con el MISMO formato que
 // usa la compu ('YYYY-MM-DD HH:MM:SS'), para que el sync compare bien.

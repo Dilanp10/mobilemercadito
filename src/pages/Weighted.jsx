@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
-import { formatMoney, formatNum, stampUpdate, stampNew, newUuid, nowLocalAR } from "../utils";
+import { formatMoney, formatNum, stampUpdate, stampNew, newUuid, nowLocalAR, fetchAllBatchQuantities } from "../utils";
 import { SearchBar, Field, Fab, Modal, Loader, Toast, calcMargin, calcPriceFromMargin } from "./Products";
 import BatchManager from "../components/BatchManager";
 import { useConfirm } from "../components/Confirm";
@@ -27,12 +27,10 @@ export default function Weighted() {
 
   async function load() {
     setLoading(true);
-    const [{ data: prods }, { data: batches }] = await Promise.all([
+    const [{ data: prods }, map] = await Promise.all([
       supabase.from("weighted_products").select("*").eq("is_deleted", 0).order("name"),
-      supabase.from("product_batches").select("product_uuid, quantity").eq("product_source", "weighted_products").eq("is_deleted", 0),
+      fetchAllBatchQuantities("weighted_products"),
     ]);
-    const map = {};
-    for (const b of batches || []) map[b.product_uuid] = (map[b.product_uuid] || 0) + Number(b.quantity || 0);
     setItems(prods || []);
     setStockMap(map);
     setLoading(false);
