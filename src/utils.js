@@ -5,23 +5,33 @@ const AR = (d) => ({ minimumFractionDigits: d, maximumFractionDigits: d });
 export const formatNum = (v, d = 2) => Number(v || 0).toLocaleString("es-AR", AR(d));
 export const formatMoney = (v) => `$${formatNum(v)}`;
 
-// Suma de fardos por producto (product_uuid -> total). Pagina de a 1000 filas:
-// Supabase corta silenciosamente en 1000 sin esto, y con >1000 fardos activos
-// quedaban productos mostrando stock 0 en la lista aunque tenían fardos reales.
-export async function fetchAllBatchQuantities(productSource) {
-  const map = {};
+// Trae TODAS las filas de una consulta paginando de a 1000: Supabase corta
+// silenciosamente ahí sin range(), y varias tablas (fardos, ventas) ya lo superan.
+// buildPage(from, to) debe devolver la misma consulta con .range(from, to) aplicado.
+export async function fetchAllRows(buildPage) {
   const PAGE = 1000;
+  let all = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
+    const { data, error } = await buildPage(from, from + PAGE - 1);
+    if (error || !data) break;
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+  }
+  return all;
+}
+
+// Suma de fardos por producto (product_uuid -> total), paginada.
+export async function fetchAllBatchQuantities(productSource) {
+  const rows = await fetchAllRows((from, to) =>
+    supabase
       .from("product_batches")
       .select("product_uuid, quantity")
       .eq("product_source", productSource)
       .eq("is_deleted", 0)
-      .range(from, from + PAGE - 1);
-    if (error || !data) break;
-    for (const b of data) map[b.product_uuid] = (map[b.product_uuid] || 0) + Number(b.quantity || 0);
-    if (data.length < PAGE) break;
-  }
+      .range(from, to)
+  );
+  const map = {};
+  for (const b of rows) map[b.product_uuid] = (map[b.product_uuid] || 0) + Number(b.quantity || 0);
   return map;
 }
 

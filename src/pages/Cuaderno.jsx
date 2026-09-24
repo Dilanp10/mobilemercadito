@@ -4,7 +4,7 @@
 // product_batches.entry_date. Pasados DIAS_VENTANA días deja de mostrarse aquí.
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
-import { formatMoney, formatNum } from "../utils";
+import { formatMoney, formatNum, fetchAllRows } from "../utils";
 import { Loader } from "./Products";
 import Proveedores from "./Proveedores";
 
@@ -73,15 +73,18 @@ export default function Cuaderno() {
         .select("uuid, name, category, cost_price_kg, price_kg, stock, created_at")
         .eq("is_deleted", 0)
         .gte("created_at", sinceISO),
-      supabase
-        .from("product_batches")
-        .select("uuid, product_uuid, product_source, quantity, entry_date, expiry_date, created_at")
-        .eq("is_deleted", 0)
-        .gte("entry_date", sinceISO),
+      fetchAllRows((from, to) =>
+        supabase
+          .from("product_batches")
+          .select("uuid, product_uuid, product_source, quantity, entry_date, expiry_date, created_at")
+          .eq("is_deleted", 0)
+          .gte("entry_date", sinceISO)
+          .range(from, to)
+      ),
     ]);
     const prodList = p.data || [];
     const wpList = w.data || [];
-    const batchList = b.data || [];
+    const batchList = b;
     setProducts(prodList);
     setWeighted(wpList);
     setBatches(batchList);

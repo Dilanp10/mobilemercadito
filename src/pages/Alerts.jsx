@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
-import { formatMoney } from "../utils";
+import { formatMoney, fetchAllRows } from "../utils";
 
 export const STOCK_THRESHOLD = 10;
 export const EXPIRY_DAYS = 14;
@@ -55,12 +55,14 @@ export function useAlerts() {
     let cancel = false;
     async function load() {
       try {
-        const [prodsRes, batchesRes] = await Promise.all([
+        const [prodsRes, batches] = await Promise.all([
           supabase.from("products").select("*").eq("is_deleted", 0),
-          supabase.from("product_batches").select("*").eq("product_source", "products").eq("is_deleted", 0),
+          fetchAllRows((from, to) =>
+            supabase.from("product_batches").select("*").eq("product_source", "products").eq("is_deleted", 0).range(from, to)
+          ),
         ]);
         if (cancel) return;
-        const cls = classifyAlerts(prodsRes.data || [], batchesRes.data || []);
+        const cls = classifyAlerts(prodsRes.data || [], batches);
         setData({ ...cls, loading: false });
       } catch (e) {
         if (cancel) return;
