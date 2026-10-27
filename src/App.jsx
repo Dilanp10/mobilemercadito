@@ -9,6 +9,7 @@ import Weighted from "./pages/Weighted";
 import Accounts from "./pages/Accounts";
 import History from "./pages/History";
 import Cuaderno from "./pages/Cuaderno";
+import Notes from "./pages/Notes";
 import Alerts from "./pages/Alerts";
 import Chat from "./pages/Chat";
 
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="/peso" element={<Weighted />} />
         <Route path="/cuentas" element={<Accounts />} />
         <Route path="/cuaderno" element={<Cuaderno />} />
+        <Route path="/notas" element={<Notes />} />
         <Route path="/historial" element={<History />} />
         <Route path="/avisos" element={<Alerts />} />
         <Route path="/asistente" element={<Chat />} />

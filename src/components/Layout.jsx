@@ -8,6 +8,7 @@ const TABS = [
   { to: "/productos", icon: "inventory_2", label: "Productos" },
   { to: "/peso", icon: "scale", label: "Peso" },
   { to: "/cuaderno", icon: "menu_book", label: "Cuaderno" },
+  { to: "/notas", icon: "sticky_note_2", label: "Notas" },
   { to: "/cuentas", icon: "account_circle", label: "Cuentas" },
   { to: "/historial", icon: "receipt_long", label: "Historial" },
 ];
@@ -17,6 +18,7 @@ const TITLES = {
   "/productos": "Productos",
   "/peso": "Productos por peso",
   "/cuaderno": "Cuaderno",
+  "/notas": "Notas",
   "/cuentas": "Cuentas",
   "/historial": "Historial",
   "/avisos": "Avisos",
