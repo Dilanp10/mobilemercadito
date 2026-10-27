@@ -12,16 +12,19 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
   const [addForm, setAddForm] = useState({ quantity: "", expiry_date: "" });
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({ quantity: "", expiry_date: "" });
+  const [error, setError] = useState("");
   const confirm = useConfirm();
+  const fmt = (q) => formatNum(q, q % 1 === 0 ? 0 : 2);
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error: err } = await supabase
       .from("product_batches")
       .select("*")
       .eq("product_uuid", productUuid)
       .eq("is_deleted", 0)
       .order("expiry_date", { ascending: true });
+    if (err) setError("No se pudieron cargar los fardos: " + err.message);
     const list = data || [];
     setBatches(list);
     setLoading(false);
@@ -32,8 +35,9 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
   async function addFardo() {
     const qty = parseFloat(addForm.quantity);
     if (!qty || qty <= 0) return;
-    if (!(await confirm({ title: "Sumar fardo", message: `¿Agregar ${formatNum(qty, qty % 1 === 0 ? 0 : 2)} ${unit} al stock?`, confirmText: "Sumar" }))) return;
-    await supabase.from("product_batches").insert({
+    if (!(await confirm({ title: "Sumar fardo", message: `¿Agregar ${fmt(qty)} ${unit} al stock?`, confirmText: "Sumar" }))) return;
+    setError("");
+    const { error: err } = await supabase.from("product_batches").insert({
       uuid: newUuid(),
       product_uuid: productUuid,
       product_source: productSource,
@@ -44,6 +48,7 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
       created_at: nowLocalAR(),
       updated_at: nowLocalAR(),
     });
+    if (err) return setError("No se pudo sumar el fardo: " + err.message);
     setAdding(false);
     setAddForm({ quantity: "", expiry_date: "" });
     await load();
@@ -52,21 +57,43 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
   async function saveEdit(b) {
     const qty = parseFloat(editForm.quantity);
     if (isNaN(qty) || qty < 0) return;
-    if (!(await confirm({ title: "Guardar fardo", message: "¿Guardar los cambios de este fardo?", confirmText: "Guardar" }))) return;
-    await supabase.from("product_batches").update({
-      quantity: qty,
-      expiry_date: editForm.expiry_date || null,
-      updated_at: nowLocalAR(),
-    }).eq("uuid", b.uuid);
+    setError("");
+
+    // Si no tocó la cantidad, el PATCH no la manda: así nunca pisa lo que la compu
+    // descontó por una venta mientras tanto.
+    const patch = { expiry_date: editForm.expiry_date || null, updated_at: nowLocalAR() };
+
+    if (Math.abs(qty - Number(b.quantity)) > 1e-6) {
+      // La cantidad que ve en pantalla puede ser vieja: releemos la real antes de reemplazarla.
+      const { data: cur, error: readErr } = await supabase
+        .from("product_batches").select("quantity, is_deleted").eq("uuid", b.uuid).maybeSingle();
+      if (readErr) return setError("No se pudo verificar el stock actual: " + readErr.message);
+      if (!cur || cur.is_deleted) { setEditId(null); await load(); return setError("Este fardo ya no existe."); }
+
+      const ahora = Number(cur.quantity);
+      const cambio = Math.abs(ahora - Number(b.quantity)) > 1e-6;
+      const message = cambio
+        ? `Mientras editabas, la cantidad pasó de ${fmt(b.quantity)} a ${fmt(ahora)} ${unit} (seguramente por una venta). ¿Dejarla igual en ${fmt(qty)} ${unit}? Esto REEMPLAZA la cantidad.`
+        : `Ahora hay ${fmt(ahora)} ${unit}. ¿Dejarla en ${fmt(qty)} ${unit}? Esto REEMPLAZA la cantidad, no la suma.`;
+      if (!(await confirm({ title: "Cambiar cantidad", message, confirmText: "Reemplazar", danger: cambio }))) return;
+      patch.quantity = qty;
+    } else if (!(await confirm({ title: "Guardar fardo", message: "¿Guardar los cambios de este fardo?", confirmText: "Guardar" }))) {
+      return;
+    }
+
+    const { error: err } = await supabase.from("product_batches").update(patch).eq("uuid", b.uuid);
+    if (err) return setError("No se pudo guardar: " + err.message);
     setEditId(null);
     await load();
   }
 
   async function removeBatch(b) {
-    if (!(await confirm({ title: "Borrar fardo", message: `¿Borrar el fardo de ${formatNum(b.quantity, b.quantity % 1 === 0 ? 0 : 2)} ${unit}? Se descontará del stock.`, confirmText: "Borrar", danger: true }))) return;
-    await supabase.from("product_batches").update({
+    if (!(await confirm({ title: "Borrar fardo", message: `¿Borrar el fardo de ${fmt(b.quantity)} ${unit}? Se descontará del stock.`, confirmText: "Borrar", danger: true }))) return;
+    setError("");
+    const { error: err } = await supabase.from("product_batches").update({
       is_deleted: 1, quantity: 0, updated_at: nowLocalAR(),
     }).eq("uuid", b.uuid);
+    if (err) return setError("No se pudo borrar: " + err.message);
     await load();
   }
 
@@ -80,6 +107,10 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
           <button onClick={() => setAdding(true)} className="text-xs bg-success-solid text-white px-3 py-1.5 rounded-lg font-semibold">+ Sumar fardo</button>
         )}
       </div>
+
+      {error && (
+        <p className="text-xs text-danger bg-surface border border-danger rounded-lg px-3 py-2 mb-2">{error}</p>
+      )}
 
       {adding && (
         <div className="bg-surface rounded-lg p-3 mb-2 border border-line space-y-2">
@@ -118,7 +149,7 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[10px] text-muted mb-1">Cantidad ({unit})</label>
+                        <label className="block text-[10px] text-muted mb-1">Cantidad nueva ({unit})</label>
                         <input type="number" inputMode="decimal" step={step} value={editForm.quantity}
                           onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
                           className="w-full px-2 py-1.5 border border-brand rounded-lg text-sm bg-surface" />
@@ -132,6 +163,9 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
                           style={{ minHeight: 36 }} />
                       </div>
                     </div>
+                    <p className="text-[10px] text-muted">
+                      Reemplaza la cantidad, no la suma. Para agregar mercadería usá “+ Sumar fardo”.
+                    </p>
                     {editForm.expiry_date && (
                       <button onClick={() => setEditForm({ ...editForm, expiry_date: "" })}
                         className="text-[11px] text-muted underline">Quitar vencimiento</button>
@@ -143,21 +177,18 @@ export default function BatchManager({ productUuid, productSource, unit = "u", s
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    {/* Tocar el fardo también abre la edición (el lápiz era muy chico) */}
-                    <button
-                      onClick={() => { setEditId(b.uuid); setEditForm({ quantity: String(b.quantity), expiry_date: b.expiry_date ? b.expiry_date.slice(0, 10) : "" }); }}
-                      className="flex-1 text-left text-sm"
-                    >
+                    {/* Solo el lápiz abre la edición: un toque suelto en la fila no debe poder reemplazar la cantidad */}
+                    <div className="flex-1 text-left text-sm">
                       <span className="font-mono text-[10px] text-subtle mr-2">#{i + 1}</span>
-                      <b className="text-fg">{formatNum(b.quantity, b.quantity % 1 === 0 ? 0 : 2)} {unit}</b>
+                      <b className="text-fg">{fmt(b.quantity)} {unit}</b>
                       <span className={`ml-2 text-xs ${expired ? "text-danger font-semibold" : "text-muted"}`}>
-                        {b.expiry_date ? `vence ${b.expiry_date}${expired ? " ⚠️" : ""}` : "sin venc. — tocá para agregar"}
+                        {b.expiry_date ? `vence ${b.expiry_date}${expired ? " ⚠️" : ""}` : "sin venc."}
                       </span>
-                    </button>
+                    </div>
                     <div className="flex gap-1">
-                      <button onClick={() => { setEditId(b.uuid); setEditForm({ quantity: String(b.quantity), expiry_date: b.expiry_date ? b.expiry_date.slice(0, 10) : "" }); }}
-                        className="p-1"><span className="material-symbols-outlined text-[18px] text-brand">edit</span></button>
-                      <button onClick={() => removeBatch(b)} className="p-1"><span className="material-symbols-outlined text-[18px] text-danger">delete</span></button>
+                      <button onClick={() => { setError(""); setEditId(b.uuid); setEditForm({ quantity: String(b.quantity), expiry_date: b.expiry_date ? b.expiry_date.slice(0, 10) : "" }); }}
+                        className="p-2" title="Editar"><span className="material-symbols-outlined text-[22px] text-brand">edit</span></button>
+                      <button onClick={() => removeBatch(b)} className="p-2" title="Borrar"><span className="material-symbols-outlined text-[22px] text-danger">delete</span></button>
                     </div>
                   </div>
                 )}
